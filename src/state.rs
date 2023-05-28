@@ -18,17 +18,21 @@
  */
 
 use crate::display_buffer::DisplayBuffer;
-use crate::implementation::desmume::SsbEmulatorDesmume;
+use crate::eos_debug::{
+    BreakpointManager, BreakpointResumeInfo, BreakpointState, BreakpointStateType,
+};
+use crate::implementation::desmume::SsbEmulatorDesmumeGlobal;
 use crate::implementation::{SsbEmulator, SsbEmulatorCommandResult};
 use crate::language::Language;
 use crate::pycallbacks::{
     DebugRegisterDebugFlagCallback, DebugRegisterDebugPrintCallback,
-    DebugRegisterExecGroundCallback, DebugRegisterScriptDebugEndCallback,
-    DebugRegisterScriptDebugStartCallback, DebugRegisterScriptVariableSetCallback,
-    DebugRegisterSsbLoadCallback, DebugRegisterSsxLoadCallback, DebugRegisterTalkLoadCallback,
-    DebugSyncGlobalVarsCallback, DebugSyncLocalVarsCallback, DebugSyncMemTablesCallback,
-    JoyGetNumberConnectedCallback, ReadMemCallback,
+    DebugRegisterExecGroundCallback, DebugRegisterScriptDebugCallback,
+    DebugRegisterScriptVariableSetCallback, DebugRegisterSsbLoadCallback,
+    DebugRegisterSsxLoadCallback, DebugRegisterTalkLoadCallback, DebugSyncGlobalVarsCallback,
+    DebugSyncLocalVarsCallback, DebugSyncMemTablesCallback, JoyGetNumberConnectedCallback,
+    ReadMemCallback,
 };
+use crate::stbytes::StBytes;
 use crossbeam_channel::{bounded, unbounded, Receiver, Sender};
 use lazy_static::lazy_static;
 use log::warn;
@@ -37,6 +41,7 @@ use std::ops::Range;
 use std::panic::{catch_unwind, panic_any, AssertUnwindSafe, UnwindSafe};
 use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
+use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
 use std::thread::{sleep, JoinHandle};
 use std::time::{Duration, Instant};
@@ -64,6 +69,17 @@ thread_local! {
 lazy_static! {
     /// The display buffer, RGBx, ready for display.
     pub static ref DISPLAY_BUFFER: DisplayBuffer = DisplayBuffer::new();
+    /// The global registry of breakpoints for a loaded ROM.
+    pub static ref BREAKPOINT_MANAGER: Arc<Mutex<Option<BreakpointManager>>> = Arc::new(Mutex::new(None));
+    /// Condvar and breakpoint state for the debugger when breaking and waking to be woken up again.
+    /// The Option<u32> is the manual requested next breakpoint, if any.
+    pub static ref BREAK: Arc<(Mutex<BreakpointResumeInfo>, Condvar)> = Arc::new((
+        Mutex::new(BreakpointResumeInfo {
+            state: BreakpointStateType::Stopped,
+            manual_step_opcode_offset: None,
+        }),
+        Condvar::new(),
+    ));
 }
 /// Whether or not boost mode is on. In boost mode some operations are not processed or processed
 /// less frequently to speed up overall emulation. In this mode the framerate of the emulator is
@@ -105,8 +121,7 @@ pub enum DebugCommand {
     UnregisterScriptVariableSet,
     RegisterScriptDebug {
         func_that_calls_command_parsing_addr: Vec<u32>,
-        hook_start: DebugRegisterScriptDebugStartCallback,
-        hook_end: DebugRegisterScriptDebugEndCallback,
+        hook: DebugRegisterScriptDebugCallback,
     },
     UnregisterScriptDebug,
     RegisterDebugPrint {
@@ -193,6 +208,17 @@ pub enum HookExecute {
     ReadMemResult(Vec<u8>, ReadMemCallback),
     /// Call callback for `emulator_get_joy_number_connected`.
     JoyGetNumberConnected(u16, JoyGetNumberConnectedCallback),
+    DebugScriptVariableSet(DebugRegisterScriptVariableSetCallback, u32, u32, u32),
+    DebugScriptDebug {
+        cb: DebugRegisterScriptDebugCallback,
+        breakpoint_state: Option<BreakpointState>,
+        script_target_slot_id: u32,
+        current_opcode: u32,
+        script_runtime_struct_mem: StBytes<'static>,
+    },
+    DebugSsbLoad(DebugRegisterSsbLoadCallback, String),
+    DebugSsxLoad(DebugRegisterSsxLoadCallback, u32, String),
+    DebugTalkLoad(DebugRegisterTalkLoadCallback, u32),
 }
 
 struct EmulatorThreadStateCreate<E>
@@ -205,9 +231,9 @@ where
     hook_channel_receive: Receiver<HookExecute>,
 }
 
-impl EmulatorThreadStateCreate<SsbEmulatorDesmume> {
+impl EmulatorThreadStateCreate<SsbEmulatorDesmumeGlobal> {
     fn create_desmume() -> Self {
-        let emulator = SsbEmulatorDesmume::new();
+        let emulator = SsbEmulatorDesmumeGlobal::new();
         let (command_channel_send, command_channel_receive) = unbounded();
         let (command_channel_blocking_send, command_channel_blocking_receive) =
             make_blocking_channel();
@@ -286,7 +312,6 @@ where
                 match state.emulator.process_cmds(
                     &state.command_channel_receive,
                     &state.command_channel_blocking_receive,
-                    boost_mode,
                     false,
                 ) {
                     SsbEmulatorCommandResult::Continue => {}
@@ -309,7 +334,6 @@ where
             match state.emulator.process_cmds(
                 &state.command_channel_receive,
                 &state.command_channel_blocking_receive,
-                boost_mode,
                 true,
             ) {
                 SsbEmulatorCommandResult::Continue => {}

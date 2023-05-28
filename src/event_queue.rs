@@ -42,6 +42,36 @@ pub fn emulator_poll(py: Python, error_consumer: PyObject) -> PyResult<()> {
                 HookExecute::JoyGetNumberConnected(val, cb) => {
                     cb.0.call(py, (val,), None)?;
                 }
+                HookExecute::DebugScriptVariableSet(cb, var_id, var_offset, var_value) => {
+                    cb.0.call(py, (var_id, var_offset, var_value), None)?;
+                }
+                HookExecute::DebugScriptDebug {
+                    cb,
+                    breakpoint_state,
+                    script_target_slot_id,
+                    current_opcode,
+                    script_runtime_struct_mem,
+                } => {
+                    cb.0.call(
+                        py,
+                        (
+                            breakpoint_state,
+                            script_runtime_struct_mem,
+                            script_target_slot_id,
+                            current_opcode,
+                        ),
+                        None,
+                    )?;
+                }
+                HookExecute::DebugSsbLoad(cb, name) => {
+                    cb.0.call(py, (name,), None)?;
+                }
+                HookExecute::DebugSsxLoad(cb, hanger, name) => {
+                    cb.0.call(py, (hanger, name), None)?;
+                }
+                HookExecute::DebugTalkLoad(cb, hanger) => {
+                    cb.0.call(py, (hanger,), None)?;
+                }
             }
         }
         Ok(())

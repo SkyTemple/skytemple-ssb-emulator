@@ -27,7 +27,7 @@ pub mod desmume;
 pub trait SsbEmulator {
     /// Prepare the execution of hooks.
     fn prepare_register_hooks(&mut self, hook_sender: &Rc<Sender<HookExecute>>);
-    
+
     // Whether the emulator supports joysticks/gamepads.
     fn supports_joystick(&self) -> bool;
 
@@ -53,7 +53,6 @@ pub trait SsbEmulator {
         &mut self,
         command_channel_receive: &Receiver<EmulatorCommand>,
         command_channel_blocking_receive: &BlockingReceiver<EmulatorCommand>,
-        boost_mode: bool,
         blocking: bool,
     ) -> SsbEmulatorCommandResult;
 }

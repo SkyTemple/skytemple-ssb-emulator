@@ -1,7 +1,8 @@
 """
 Emulator interface for SkyTemple Script Engine Debugger.
 """
-from typing import Sequence, Callable, Optional, Mapping, ClassVar
+from __future__ import annotations
+from typing import Sequence, Callable, Optional, Mapping, ClassVar, Protocol
 
 from range_typed_integers import u32, u64
 
@@ -242,20 +243,19 @@ def emulator_sync_tables(cb: Callable[[Sequence[EmulatorMemTable]], None]):
     ...
 
 
-EmulatorScriptDebugStartHook = Callable[[bytes, u32, u32], None]
-EmulatorScriptDebugStartHook.__doc__ = "signature: def _(script_runtime_struct_mem: bytes, script_target_slot_id: u32, current_opcode: u32)"
-
-EmulatorScriptDebugEndHook = Callable[[], None]
-EmulatorScriptDebugEndHook.__doc__ = "signature: def _()"
+EmulatorScriptDebugHook = Callable[[Optional[BreakpointState], bytes, u32, u32], None]
+EmulatorScriptDebugHook.__doc__ = "signature: def _(break_state: Optional[BreakpointState], script_runtime_struct_mem: bytes, script_target_slot_id: u32, current_opcode: u32)"
 
 
 def emulator_register_script_debug(
         func_that_calls_command_parsing_addr: Optional[Sequence[int]],
-        hook_start: EmulatorScriptDebugStartHook,
-        hook_end: EmulatorScriptDebugEndHook
+        hook: EmulatorScriptDebugHook,
 ):
     """
-    Register hooks to process script engine debugging events. Replaces the previously registered hooks.
+    Registers the debugger. The debugger will break depending on the state of the breakpoints currently
+    configured.
+
+    Also register a hook to process script engine debugging events. Replaces the previously registered hooks.
     The hooks are called asynchronously by polling `emulator_poll` on the receiving thread.
     """
     ...
@@ -581,6 +581,189 @@ def emulator_get_key_names() -> Sequence[str]:
     """Returns the internal names of keys, indexed by key ID"""
     ...
 
+
 def emulator_display_buffer_as_rgbx() -> bytes:
     """Returns the display buffer of the emulator in RGBx format."""
     ...
+
+
+def emulator_debug_init_breakpoint_manager(breakpoints_json_filename: str):
+    """(Re)-initializes the debug breakpoint manager."""
+    ...
+
+
+def emulator_debug_set_loaded_ssb_breakable(ssb_filename: str, value: bool):
+    """
+    Change whether the SSB file identified by the given name can currently be breaked in.
+    A file is not debuggable, if an old state is loaded in RAM and old breakpoint mappings are not available.
+
+    Defaults to true for all files.
+    """
+    ...
+
+
+def emulator_debug_breakpoints_disabled_get() -> bool:
+    """Whether halting at breakpoints is currently globally disabled"""
+    ...
+
+
+def emulator_debug_breakpoints_disabled_set(val: bool):
+    """Set whether halting at breakpoints is currently globally disabled"""
+    ...
+
+
+class SsbLoadedFileProtocol(Protocol):
+    filename: str
+    ram_state_up_to_date: bool
+
+    def register_reload_event_manager(self, cb: Callable[[SsbLoadedFileProtocol], None]):
+        pass
+
+
+def emulator_debug_breakpoints_resync(ssb_filename: str, b_points: Sequence[int], ssb_loaded_file: SsbLoadedFileProtocol):
+    """
+    Re-synchronize breakpoints for the given ssb file.
+    
+    This is triggered, after a ssb file was saved.
+    If the file is still open in the ground engine, the new state is written to file and
+    a temporary dict, but is not used yet. The Breakpoint register registers itself as a
+    callback for that SSB file and waits until it is no longer loaded in the ground engine.
+    If the file is not open in the ground engine, the changes are applied immediately.
+   
+    Callbacks for adding are NOT called as for emulator_debug_breakpoint_add.
+    """
+    ...
+
+
+def emulator_debug_breakpoint_add(ssb_filename: str, opcode_offset: int):
+    """Add a breakpoint for the given ssb file."""
+    ...
+
+
+def emulator_debug_breakpoint_remove(ssb_filename: str, opcode_offset: int):
+    """Remove a breakpoint for the given ssb file, if it exists. Otherwise do nothing."""
+    ...
+
+
+def emulator_breakpoints_get_saved_in_ram_for(ssb_filename: str) -> Sequence[int]:
+    """Returns all breakpoints currently stored for the given ssb file in RAM."""
+    ...
+
+
+def emulator_breakpoints_set_loaded_ssb_files(
+        hanger0: Optional[str],
+        hanger1: Optional[str],
+        hanger2: Optional[str],
+        hanger3: Optional[str],
+        hanger4: Optional[str],
+        hanger5: Optional[str],
+        hanger6: Optional[str],
+):
+    """Set the loaded SSB files for all 7 hangers. This is needed when loading save states, resetting the ROM etc."""
+    ...
+
+
+def emulator_breakpoints_set_load_ssb_for(hanger_id: Optional[int]):
+    """Set the hanger that an SSB will be loaded for next. This is needed when loading save states, resetting the ROM etc."""
+    ...
+
+
+EmulatorDebugBreakpointCallback = Callable[[str, int], None]
+EmulatorDebugBreakpointCallback.__doc__ = "signature: def _(ssb_filename: str, opcode_offset: int)"
+
+
+def emulator_debug_register_breakpoint_callbacks(
+        on_breakpoint_added: EmulatorDebugBreakpointCallback,
+        on_breakpoint_removed: EmulatorDebugBreakpointCallback
+) -> Sequence[int]:
+    """
+    Register callbacks to call when breakpoints are added or removed.
+    The callbacks may be called when calling emulator_poll, or directly when
+    emulator_debug_breakpoint_add or emulator_debug_breakpoint_remove are called.
+    """
+    ...
+
+
+class BreakpointStateType:
+    """State of the debugger halted at a breakpoint. Enum-like."""
+    # INITIAL STATE: The breakpoint is being stopped at.
+    Stopped: ClassVar[BreakpointStateType]
+    # FINAL STATES: What happened / what to do next? - See the corresponding methods of BreakpointState.
+    FailHard: ClassVar[BreakpointStateType]
+    Resume: ClassVar[BreakpointStateType]
+    StepOver: ClassVar[BreakpointStateType]
+    StepInto: ClassVar[BreakpointStateType]
+    StepOut: ClassVar[BreakpointStateType]
+    StepNext: ClassVar[BreakpointStateType]
+    # Manually step to an opcode offset of the SSB file currently stopped for.
+    StepManual: ClassVar[BreakpointStateType]
+
+    def __int__(self):
+        """Returns the numeric value."""
+        ...
+
+
+class BreakpointState:
+    """
+    The current state of the stepping mechanism of the debugger.
+    If is_stopped(), the code execution of the emulator thread is currently on hold.
+
+    The object may optionally have a file state object, which describes more about the debugger state
+    for this breakpoint (eg. which source file is breaked in, if breaked on macro call)
+
+    These objects are not reusable. They can not transition back to the initial STOPPED state.
+    """
+    file_state: Optional[object]
+
+    @property
+    def state(self) -> BreakpointStateType: ...
+
+    @property
+    def script_runtime_struct_mem(self) -> bytes: ...
+
+    @property
+    def script_target_slot_id(self) -> u32: ...
+
+    @property
+    def current_opcode(self) -> u32: ...
+
+    @property
+    def hanger_id(self) -> u32: ...
+
+    def add_release_hook(self, hook: Callable[[BreakpointState], None]):
+        """Called when polling the emulator after the debugging break has been released."""
+        ...
+
+    def is_stopped(self) -> bool: ...
+
+    def fail_hard(self):
+        """Immediately abort debugging and don't break again it this tick."""
+        ...
+
+    def resume(self):
+        """Resume normal code execution."""
+        ...
+
+    def step_into(self):
+        """Step into the current call (if it's a call that creates a call stack), otherwise same as step over."""
+        ...
+
+    def step_over(self):
+        """Step over the current call (remain in the current script file + skip debugging any calls to subroutines)."""
+        ...
+
+    def step_out(self):
+        """Step out of the current routine, if there's a call stack, otherwise same as resume."""
+        ...
+
+    def step_next(self):
+        """Break at the next opcode, even if it's for a different script target."""
+        ...
+
+    def step_manual(self, opcode_offset: int):
+        """Transition to the StepManual state and set the opcode to halt at."""
+        ...
+
+    def transition(self, state_type: BreakpointStateType):
+        """Transition to the specified state. Can not transition to Stopped."""
+        ...

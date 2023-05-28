@@ -45,6 +45,8 @@ fn skytemple_ssb_emulator(py: Python, module: &PyModule) -> PyResult<()> {
     module.add_class::<EmulatorMemTable>()?;
     module.add_class::<Language>()?;
     module.add_class::<EmulatorLogType>()?;
+    module.add_class::<BreakpointStateType>()?;
+    module.add_class::<BreakpointState>()?;
 
     let emulator_keys = PyModule::new(py, "EmulatorKeys")?;
     emulator_keys.add(
@@ -145,7 +147,41 @@ fn skytemple_ssb_emulator(py: Python, module: &PyModule) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(emulator_set_debug_flag_1, module)?)?;
     module.add_function(wrap_pyfunction!(emulator_set_debug_flag_2, module)?)?;
     module.add_function(wrap_pyfunction!(emulator_sync_vars, module)?)?;
-    module.add_function(wrap_pyfunction!(emulator_sync_local_vars, module)?)?;
+    module.add_function(wrap_pyfunction!(
+        emulator_debug_init_breakpoint_manager,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        emulator_debug_set_loaded_ssb_breakable,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        emulator_debug_breakpoints_disabled_get,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        emulator_debug_breakpoints_disabled_set,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(emulator_debug_breakpoints_resync, module)?)?;
+    module.add_function(wrap_pyfunction!(emulator_debug_breakpoint_add, module)?)?;
+    module.add_function(wrap_pyfunction!(emulator_debug_breakpoint_remove, module)?)?;
+    module.add_function(wrap_pyfunction!(
+        emulator_breakpoints_get_saved_in_ram_for,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        emulator_debug_register_breakpoint_callbacks,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        emulator_breakpoints_set_loaded_ssb_files,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        emulator_breakpoints_set_load_ssb_for,
+        module
+    )?)?;
 
     info!("Loaded skytemple_ssb_emulator.");
 

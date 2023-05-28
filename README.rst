@@ -3,7 +3,7 @@ skytemple-ssb-emulator
 
 |build| |pypi-version| |pypi-downloads| |pypi-license| |pypi-pyversions| |discord|
 
-.. |build| image:: https://img.shields.io/github/workflow/status/SkyTemple/skytemple-ssb-emulator/Build,%20test%20and%20publish
+.. |build| image:: https://img.shields.io/github/actions/workflow/status/SkyTemple/skytemple-ssb-emulator/build-test-publish.yml
     :target: https://pypi.org/project/skytemple-ssb-emulator/
     :alt: Build Status
 
@@ -29,4 +29,3 @@ Emulator runtime and bindings for `skytemple-ssb-debugger`_.
 
 .. _SkyTemple Files: https://github.com/SkyTemple/skytemple-files
 .. _skytemple-ssb-debugger: https://github.com/SkyTemple/skytemple-ssb-debbuger
-.. _marius851000: https://github.com/marius851000/
