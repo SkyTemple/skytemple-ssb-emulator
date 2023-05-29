@@ -182,7 +182,7 @@ pub enum EmulatorCommand {
     Pause,
     Resume,
     Shutdown,
-    OpenRom(String),
+    OpenRom(String, u32),
     VolumeSet(u8),
     SavestateSaveFile(String),
     SavestateLoadFile(String),

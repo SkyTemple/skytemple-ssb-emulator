@@ -60,8 +60,8 @@ pub fn emulator_resume() {
 
 #[pyfunction]
 /// Open a ROM file. This will reset emulation, if the emulator is currently running.
-pub fn emulator_open_rom(filename: String) {
-    command_channel_blocking_send(EmulatorCommand::OpenRom(filename))
+pub fn emulator_open_rom(filename: String, address_loaded_overlay_group_1: u32) {
+    command_channel_blocking_send(EmulatorCommand::OpenRom(filename, address_loaded_overlay_group_1))
 }
 
 #[pyfunction]

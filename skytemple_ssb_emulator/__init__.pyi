@@ -157,7 +157,7 @@ def emulator_set_language(lang: Language):
     ...
 
 
-def emulator_open_rom(filename: str):
+def emulator_open_rom(filename: str, address_loaded_overlay_group_1: u32):
     """
     Open a ROM file. This will reset emulation, if the emulator is currently running.
     """
