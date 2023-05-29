@@ -37,9 +37,6 @@ use crossbeam_channel::{Receiver, Sender};
 use log::warn;
 use rs_desmume::mem::{IndexMove, Processor, Register};
 use rs_desmume::DeSmuME;
-use skytemple_rust::st_script_var_table::{
-    ScriptVariableTables, COUNT_GLOBAL_VARS, COUNT_LOCAL_VARS, DEFINITION_STRUCT_SIZE,
-};
 use sprintf::{vsprintf, Printf};
 use std::borrow::Cow;
 use std::cell::{RefCell, UnsafeCell};
@@ -75,6 +72,8 @@ struct HookStorage {
 
 pub struct SsbEmulatorDesmume {
     emu: DeSmuME,
+    volume: u8,
+    had_ever_rom_loaded: bool,
     hooks: HookStorage,
     address_loaded_overlay_group_1: u32,
     vars: Option<GameVariableManipulator>,
@@ -149,6 +148,8 @@ impl SsbEmulatorDesmumeGlobal {
                             panic!("Failed to init the emulator: {}", err)
                         }
                     },
+                    volume: 100,
+                    had_ever_rom_loaded: false,
                     hooks: Default::default(),
                     address_loaded_overlay_group_1: 0,
                     vars: None,
@@ -253,11 +254,27 @@ impl SsbEmulator for SsbEmulatorDesmumeGlobal {
 
 impl SsbEmulatorDesmume {
     fn do_process(&mut self, cmd: EmulatorCommand) -> bool {
+        dbg_trace!("SsbEmulatorDesmume::do_process - {cmd:?}");
         match cmd {
             EmulatorCommand::NoOp => {}
-            EmulatorCommand::Reset => self.emu.reset(),
-            EmulatorCommand::Pause => self.emu.pause(),
-            EmulatorCommand::Resume => self.emu.resume(false),
+            EmulatorCommand::Reset => {
+                if self.had_ever_rom_loaded {
+                    self.emu.volume_set(self.volume);
+                    self.emu.reset();
+                    self.emu.volume_set(self.volume);
+                }
+            }
+            EmulatorCommand::Pause => {
+                if self.had_ever_rom_loaded {
+                    self.emu.pause()
+                }
+            }
+            EmulatorCommand::Resume => {
+                if self.had_ever_rom_loaded {
+                    self.emu.volume_set(self.volume);
+                    self.emu.resume(false)
+                }
+            }
             EmulatorCommand::Shutdown => {
                 EMULATOR_IS_RUNNING.store(false, Ordering::Release);
                 return true;
@@ -276,32 +293,19 @@ impl SsbEmulatorDesmume {
                         send_hook(HookExecute::Error(msg));
                     })
                     .ok();
+                self.emu.volume_set(self.volume);
+                self.had_ever_rom_loaded = true;
                 self.address_loaded_overlay_group_1 = address_loaded_overlay_group_1;
                 self.vars = Some(GameVariableManipulator::new(
-                    ScriptVariableTables::new_with_name_reader(
-                        self.emu
-                            .memory()
-                            .u8()
-                            .index_move(
-                                global_addr
-                                    ..(global_addr + (COUNT_GLOBAL_VARS * DEFINITION_STRUCT_SIZE)),
-                            )
-                            .into(),
-                        self.emu
-                            .memory()
-                            .u8()
-                            .index_move(
-                                local_addr
-                                    ..(local_addr + (COUNT_LOCAL_VARS * DEFINITION_STRUCT_SIZE)),
-                            )
-                            .into(),
-                        &|addr| Ok(self.emu.memory().read_cstring(addr)),
-                    )
-                    .expect("Failed reading variables. Bailing!"),
+                    global_addr,
+                    local_addr,
                     value_addrs,
                 ));
             }
-            EmulatorCommand::VolumeSet(volume) => self.emu.volume_set(volume),
+            EmulatorCommand::VolumeSet(volume) => {
+                self.volume = volume;
+                self.emu.volume_set(volume);
+            }
             EmulatorCommand::SavestateSaveFile(filename) => {
                 self.emu
                     .savestate_mut()
@@ -662,16 +666,21 @@ impl SsbEmulatorDesmume {
             }
             DebugCommand::SyncGlobalVars(cb) => {
                 if let Some(vars) = self.vars.as_ref() {
-                    let mut values = HashMap::with_capacity(vars.defs.globals.len());
-                    for var in &vars.defs.globals {
-                        let mut var_values = Vec::with_capacity(var.data.nbvalues as usize);
-                        for offset in 0..(var.data.nbvalues) {
-                            let (_, val) = vars.read(&self.emu, var.id as u16, offset, None);
-                            var_values.push(val);
+                    vars.with_defs(&self.emu, |maybe_defs| {
+                        if let Ok(defs) = maybe_defs {
+                            let mut values = HashMap::with_capacity(defs.globals.len());
+                            for var in &defs.globals {
+                                let mut var_values = Vec::with_capacity(var.data.nbvalues as usize);
+                                for offset in 0..(var.data.nbvalues) {
+                                    let (_, val) =
+                                        vars.read(&self.emu, var.id as u16, offset, None);
+                                    var_values.push(val);
+                                }
+                                values.insert(var.id, var_values);
+                            }
+                            send_hook(HookExecute::SyncGlobalVars(cb.clone(), values));
                         }
-                        values.insert(var.id, var_values);
-                    }
-                    send_hook(HookExecute::SyncGlobalVars(cb, values));
+                    })
                 }
             }
             DebugCommand::SyncLocalVars(addr_of_pnt_to_breaked_for_entity, cb) => {
@@ -685,12 +694,16 @@ impl SsbEmulatorDesmume {
                 );
 
                 if let Some(vars) = self.vars.as_ref() {
-                    let mut values = Vec::with_capacity(vars.defs.locals.len());
-                    for var in &vars.defs.locals {
-                        let (_, val) = vars.read(&self.emu, var.id as u16, 0, Some(&srs));
-                        values.push(val);
-                    }
-                    send_hook(HookExecute::SyncLocalVars(cb, values));
+                    vars.with_defs(&self.emu, |maybe_defs| {
+                        if let Ok(defs) = maybe_defs {
+                            let mut values = Vec::with_capacity(defs.locals.len());
+                            for var in &defs.locals {
+                                let (_, val) = vars.read(&self.emu, var.id as u16, 0, Some(&srs));
+                                values.push(val);
+                            }
+                            send_hook(HookExecute::SyncLocalVars(cb.clone(), values));
+                        }
+                    })
                 }
             }
             DebugCommand::SyncMemTables(address_table_head, cb) => {
@@ -719,6 +732,7 @@ impl SsbEmulatorDesmume {
 }
 
 fn send_hook(msg: HookExecute) {
+    dbg_trace!("send_hook - {msg:?}");
     HOOK_SENDER.with(|s| {
         s.borrow()
             .as_ref()
@@ -741,6 +755,7 @@ macro_rules! take_pycallback_and_send_hook {
 }
 
 extern "C" fn hook_script_variable_set(_addr: u32, _size: i32) -> i32 {
+    dbg_trace!("desmume: hook_script_variable_set");
     SELF.with(|emu_cell| {
         let emu = unsafe { (*emu_cell.get()).as_mut().unwrap() };
 
@@ -761,6 +776,7 @@ extern "C" fn hook_script_variable_set(_addr: u32, _size: i32) -> i32 {
 }
 
 extern "C" fn hook_script_variable_set_with_offset(_addr: u32, _size: i32) -> i32 {
+    dbg_trace!("desmume: hook_script_variable_set_with_offset");
     SELF.with(|emu_cell| {
         let emu = unsafe { (*emu_cell.get()).as_mut().unwrap() };
 
@@ -784,6 +800,7 @@ extern "C" fn hook_script_variable_set_with_offset(_addr: u32, _size: i32) -> i3
 
 /// MAIN DEBUGGER HOOK.
 extern "C" fn hook_script_debug(_addr: u32, _size: i32) -> i32 {
+    dbg_trace!("desmume: hook_script_debug");
     SELF.with(|emu_cell| {
         let emu = unsafe { (*emu_cell.get()).as_mut().unwrap() };
 
@@ -961,6 +978,7 @@ extern "C" fn hook_script_debug(_addr: u32, _size: i32) -> i32 {
 }
 
 extern "C" fn hook_ssb_load(_addr: u32, _size: i32) -> i32 {
+    dbg_trace!("desmume: hook_ssb_load");
     SELF.with(|emu_cell| {
         let emu = unsafe { (*emu_cell.get()).as_mut().unwrap() };
 
@@ -994,6 +1012,7 @@ extern "C" fn hook_ssb_load(_addr: u32, _size: i32) -> i32 {
 }
 
 extern "C" fn hook_ssx_load(_addr: u32, _size: i32) -> i32 {
+    dbg_trace!("desmume: hook_ssx_load");
     SELF.with(|emu_cell| {
         let emu = unsafe { (*emu_cell.get()).as_mut().unwrap() };
 
@@ -1028,6 +1047,7 @@ extern "C" fn hook_ssx_load(_addr: u32, _size: i32) -> i32 {
 }
 
 extern "C" fn hook_talk_load(_addr: u32, _size: i32) -> i32 {
+    dbg_trace!("desmume: hook_talk_load");
     SELF.with(|emu_cell| {
         let emu = unsafe { (*emu_cell.get()).as_mut().unwrap() };
 
@@ -1060,6 +1080,7 @@ extern "C" fn hook_talk_load(_addr: u32, _size: i32) -> i32 {
 }
 
 extern "C" fn hook_write_unionall_load_addr_change(_addr: u32, _size: i32) -> i32 {
+    dbg_trace!("desmume: hook_write_unionall_load_addr_change");
     SELF.with(|emu_cell| {
         let emu = unsafe { (*emu_cell.get()).as_mut().unwrap() };
         update_unionall_load_address(emu);
@@ -1068,6 +1089,7 @@ extern "C" fn hook_write_unionall_load_addr_change(_addr: u32, _size: i32) -> i3
 }
 
 fn update_unionall_load_address(emu: &mut SsbEmulatorDesmume) {
+    dbg_trace!("desmume: update_unionall_load_address");
     if overlay11_loaded(emu) {
         UNIONALL_LOAD_ADDRESS.store(
             emu.emu
@@ -1080,10 +1102,12 @@ fn update_unionall_load_address(emu: &mut SsbEmulatorDesmume) {
 }
 
 extern "C" fn hook_debug_print_printfs0(_addr: u32, _size: i32) -> i32 {
+    dbg_trace!("desmume: hook_debug_print_printfs0");
     _hook_debug_print_printfs(0)
 }
 
 extern "C" fn hook_debug_print_printfs1(_addr: u32, _size: i32) -> i32 {
+    dbg_trace!("desmume: hook_debug_print_printfs1");
     _hook_debug_print_printfs(1)
 }
 
@@ -1135,6 +1159,7 @@ fn _hook_debug_print_printfs(register_offset: u32) -> i32 {
 }
 
 extern "C" fn script_hook_addr_script(_addr: u32, _size: i32) -> i32 {
+    dbg_trace!("desmume: script_hook_addr_script");
     SELF.with(|emu_cell| {
         let emu = unsafe { (*emu_cell.get()).as_mut().unwrap() };
 
@@ -1217,6 +1242,7 @@ extern "C" fn script_hook_addr_script(_addr: u32, _size: i32) -> i32 {
 }
 
 extern "C" fn hook_debug_get_debug_flag_get_input(_addr: u32, _size: i32) -> i32 {
+    dbg_trace!("desmume: hook_debug_get_debug_flag_get_input");
     SELF.with(|emu_cell| {
         let emu = unsafe { (*emu_cell.get()).as_mut().unwrap() };
 
@@ -1227,6 +1253,7 @@ extern "C" fn hook_debug_get_debug_flag_get_input(_addr: u32, _size: i32) -> i32
 }
 
 extern "C" fn hook_debug_get_debug_flag_1(_addr: u32, _size: i32) -> i32 {
+    dbg_trace!("desmume: hook_debug_get_debug_flag_1");
     SELF.with(|emu_cell| {
         let emu = unsafe { (*emu_cell.get()).as_mut().unwrap() };
         if emu.debug_flag_temp_input < NB_DEBUG_FLAGS_1 as u32 {
@@ -1246,6 +1273,7 @@ extern "C" fn hook_debug_get_debug_flag_1(_addr: u32, _size: i32) -> i32 {
 }
 
 extern "C" fn hook_debug_get_debug_flag_2(_addr: u32, _size: i32) -> i32 {
+    dbg_trace!("desmume: hook_debug_get_debug_flag_2");
     SELF.with(|emu_cell| {
         let emu = unsafe { (*emu_cell.get()).as_mut().unwrap() };
         if emu.debug_flag_temp_input < NB_DEBUG_FLAGS_2 as u32 {
@@ -1265,6 +1293,7 @@ extern "C" fn hook_debug_get_debug_flag_2(_addr: u32, _size: i32) -> i32 {
 }
 
 extern "C" fn hook_debug_set_debug_flag_1(_addr: u32, _size: i32) -> i32 {
+    dbg_trace!("desmume: hook_debug_set_debug_flag_1");
     SELF.with(|emu_cell| {
         let emu = unsafe { (*emu_cell.get()).as_mut().unwrap() };
         let flag_id = emu.emu.memory().get_reg(Processor::Arm9, Register::R0);
@@ -1285,6 +1314,7 @@ extern "C" fn hook_debug_set_debug_flag_1(_addr: u32, _size: i32) -> i32 {
 }
 
 extern "C" fn hook_debug_set_debug_flag_2(_addr: u32, _size: i32) -> i32 {
+    dbg_trace!("desmume: hook_debug_set_debug_flag_2");
     SELF.with(|emu_cell| {
         let emu = unsafe { (*emu_cell.get()).as_mut().unwrap() };
         let flag_id = emu.emu.memory().get_reg(Processor::Arm9, Register::R0);
@@ -1305,6 +1335,7 @@ extern "C" fn hook_debug_set_debug_flag_2(_addr: u32, _size: i32) -> i32 {
 }
 
 extern "C" fn hook_debug_debug_mode(_addr: u32, _size: i32) -> i32 {
+    dbg_trace!("desmume: hook_debug_debug_mode");
     SELF.with(|emu_cell| {
         let emu = unsafe { (*emu_cell.get()).as_mut().unwrap() };
         if emu.debug_mode {
@@ -1319,6 +1350,7 @@ extern "C" fn hook_debug_debug_mode(_addr: u32, _size: i32) -> i32 {
 }
 
 extern "C" fn hook_exec_ground(addr: u32, _size: i32) -> i32 {
+    dbg_trace!("desmume: hook_exec_ground");
     SELF.with(|emu_cell| {
         let emu = unsafe { (*emu_cell.get()).as_mut().unwrap() };
 

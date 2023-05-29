@@ -22,8 +22,11 @@ use log::warn;
 use rs_desmume::mem::{IndexMove, IndexSet};
 use rs_desmume::DeSmuME;
 use skytemple_rust::st_script_var_table::{
-    ScriptVariableDefinition, ScriptVariableTables, ScriptVariableType,
+    ScriptVariableDefinition, ScriptVariableTables, ScriptVariableType, COUNT_GLOBAL_VARS,
+    COUNT_LOCAL_VARS, DEFINITION_STRUCT_SIZE,
 };
+use skytemple_rust::PyResult;
+use std::cell::RefCell;
 
 #[derive(Debug)]
 pub struct GameVariablesValueAddresses {
@@ -36,7 +39,9 @@ pub struct GameVariablesValueAddresses {
 }
 
 pub struct GameVariableManipulator {
-    pub defs: ScriptVariableTables,
+    defs: RefCell<Option<ScriptVariableTables>>,
+    defs_global_addr: u32,
+    defs_local_addr: u32,
     value_addrs: GameVariablesValueAddresses,
 }
 
@@ -45,8 +50,59 @@ const START_OFFSET_LOCAL_VARIABLES: u32 = 108;
 // TODO: Currently DeSmuME specific.
 #[allow(clippy::if_same_then_else)]
 impl GameVariableManipulator {
-    pub fn new(defs: ScriptVariableTables, value_addrs: GameVariablesValueAddresses) -> Self {
-        Self { defs, value_addrs }
+    // defs is lazily init.
+    pub fn new(
+        defs_global_addr: u32,
+        defs_local_addr: u32,
+        value_addrs: GameVariablesValueAddresses,
+    ) -> Self {
+        Self {
+            defs: RefCell::new(None),
+            defs_global_addr,
+            defs_local_addr,
+            value_addrs,
+        }
+    }
+
+    pub fn with_defs<F, X>(&self, emu: &DeSmuME, cb: F) -> X
+    where
+        F: Fn(PyResult<&ScriptVariableTables>) -> X,
+    {
+        if let Some(defs) = self.defs.borrow().as_ref() {
+            cb(Ok(defs))
+        } else {
+            match self.make_defs(emu) {
+                Ok(defs) => {
+                    self.defs.replace(Some(defs));
+                    cb(Ok(self.defs.borrow().as_ref().unwrap()))
+                }
+                Err(err) => cb(Err(err)),
+            }
+        }
+    }
+
+    fn make_defs(&self, emu: &DeSmuME) -> PyResult<ScriptVariableTables> {
+        ScriptVariableTables::new_with_name_reader(
+            emu.memory()
+                .u8()
+                .index_move(
+                    self.defs_global_addr
+                        ..(self.defs_global_addr + (COUNT_GLOBAL_VARS * DEFINITION_STRUCT_SIZE)),
+                )
+                .into(),
+            emu.memory()
+                .u8()
+                .index_move(
+                    self.defs_local_addr
+                        ..(self.defs_local_addr + (COUNT_LOCAL_VARS * DEFINITION_STRUCT_SIZE)),
+                )
+                .into(),
+            &|addr| Ok(emu.memory().read_cstring(addr)),
+        )
+        .map_err(|err| {
+            warn!("Failed reading variable table. Maybe ROM is still loading. Error: {err}");
+            err
+        })
     }
 
     /// Returns the info of the game variable passed in from the script info object and
@@ -56,127 +112,130 @@ impl GameVariableManipulator {
     /// GetScriptVariableValue,
     /// GetScriptVariableValueWithOffset and
     /// GetScriptVariableInfoAndPtr
-    pub fn read<'a>(
-        &'a self,
+    pub fn read(
+        &self,
         emu: &DeSmuME,
         var_id: u16,
         read_offset: u16,
         srs: Option<&ScriptRuntime>,
-    ) -> (&'a str, i32) {
-        let Some((var, is_local)) = self.get_var(var_id) else {
-            warn!("Could not determine correct value for variable {var_id}. Probably corruption.");
-            return ("?", -1);
-        };
-        let Some(value_ptr) = self.get_value_ptr(is_local, var, srs) else {
-            warn!("Could not get local variable because no script runtime was provided.");
-            return ("?", -1);
-        };
-        let value = match var.data.r#type {
-            ScriptVariableType::None => 0,
-            ScriptVariableType::Bit => {
-                let offs = var.data.bitshift + read_offset;
-                let value_raw = emu
-                    .memory()
-                    .u8()
-                    .index_move(value_ptr + ((offs as u32) >> 3)); // offset by higher 13 bits [removes the bit]
-                let val_offs = 1 << (offs & 7); // offset by lower three bits
-                if value_raw & val_offs > 0 {
-                    1
-                } else {
-                    0
+    ) -> (String, i32) {
+        dbg_trace!("GameVariableManipulator::read - {var_id} - {read_offset}");
+        self.with_var(emu, var_id, |with_var| {
+            let Some((var, is_local)) = with_var else {
+                warn!("Could not determine correct value for variable {var_id}. Probably corruption.");
+                return ("?".to_string(), -1);
+            };
+            let Some(value_ptr) = self.get_value_ptr(is_local, var, srs) else {
+                warn!("Could not get local variable because no script runtime was provided.");
+                return ("?".to_string(), -1);
+            };
+            let value = match var.data.r#type {
+                ScriptVariableType::None => 0,
+                ScriptVariableType::Bit => {
+                    let offs = var.data.bitshift + read_offset;
+                    let value_raw = emu
+                        .memory()
+                        .u8()
+                        .index_move(value_ptr + ((offs as u32) >> 3)); // offset by higher 13 bits [removes the bit]
+                    let val_offs = 1 << (offs & 7); // offset by lower three bits
+                    if value_raw & val_offs > 0 {
+                        1
+                    } else {
+                        0
+                    }
                 }
-            }
-            ScriptVariableType::String => {
-                // This is for this purpose the same as reading an u8.
-                emu.memory().u8().index_move(value_ptr + read_offset as u32) as i32
-            }
-            ScriptVariableType::U8 => {
-                emu.memory().u8().index_move(value_ptr + read_offset as u32) as i32
-            }
-            ScriptVariableType::I8 => {
-                emu.memory().i8().index_move(value_ptr + read_offset as u32) as i32
-            }
-            ScriptVariableType::U16 => {
-                emu.memory()
-                    .u16()
-                    .index_move(value_ptr + (read_offset as u32 * 2)) as i32
-            }
-            ScriptVariableType::I16 => {
-                emu.memory()
-                    .i16()
-                    .index_move(value_ptr + (read_offset as u32 * 2)) as i32
-            }
-            ScriptVariableType::U32 => {
-                emu.memory()
-                    .u32()
-                    .index_move(value_ptr + (read_offset as u32 * 4)) as i32
-            }
-            ScriptVariableType::I32 => emu
-                .memory()
-                .i32()
-                .index_move(value_ptr + (read_offset as u32 * 4)),
-            ScriptVariableType::Special => {
-                // Special cases (offset is ignored for these)
-                if var_id == 0x3A {
-                    // FRIEND_SUM
-                    1
-                } else if var_id == 0x3B {
-                    // UNIT_SUM
-                    // Possibly unused but definitely relatively complicated,
-                    // so not implemented for now.
-                    0
-                } else if var_id == 0x3C {
-                    // CARRY_GOLD
-                    let misc_data_begin = emu
-                        .memory()
-                        .u32()
-                        .index_move(self.value_addrs.game_state_values);
-                    // Possibly who the money belongs to? Main team, Special episode team, etc.
-                    let some_sort_of_offset = emu.memory().u8().index_move(misc_data_begin + 0x388);
-                    let address_carry_gold =
-                        misc_data_begin + (some_sort_of_offset as u32 * 4) + 0x1394;
-                    emu.memory().u32().index_move(address_carry_gold) as i32
-                } else if var_id == 0x3D {
-                    // BANK_GOLD
-                    let misc_data_begin = emu
-                        .memory()
-                        .u32()
-                        .index_move(self.value_addrs.game_state_values);
-                    let address_bank_gold = misc_data_begin + 0x13a0;
-                    emu.memory().u32().index_move(address_bank_gold) as i32
-                } else if var_id == 0x47 {
-                    // LANGUAGE_TYPE
+                ScriptVariableType::String => {
+                    // This is for this purpose the same as reading an u8.
+                    emu.memory().u8().index_move(value_ptr + read_offset as u32) as i32
+                }
+                ScriptVariableType::U8 => {
+                    emu.memory().u8().index_move(value_ptr + read_offset as u32) as i32
+                }
+                ScriptVariableType::I8 => {
+                    emu.memory().i8().index_move(value_ptr + read_offset as u32) as i32
+                }
+                ScriptVariableType::U16 => {
                     emu.memory()
-                        .i8()
-                        .index_move(self.value_addrs.language_info_data + 1)
-                        as i32
-                } else if var_id == 0x48 {
-                    // GAME_MODE
-                    emu.memory().u8().index_move(self.value_addrs.game_mode) as i32
-                } else if var_id == 0x49 {
-                    // EXECUTE_SPECIAL_EPISODE_TYPE
-                    let game_mode = emu.memory().u8().index_move(self.value_addrs.game_mode);
-                    match game_mode {
-                        1 => emu
+                        .u16()
+                        .index_move(value_ptr + (read_offset as u32 * 2)) as i32
+                }
+                ScriptVariableType::I16 => {
+                    emu.memory()
+                        .i16()
+                        .index_move(value_ptr + (read_offset as u32 * 2)) as i32
+                }
+                ScriptVariableType::U32 => {
+                    emu.memory()
+                        .u32()
+                        .index_move(value_ptr + (read_offset as u32 * 4)) as i32
+                }
+                ScriptVariableType::I32 => emu
+                    .memory()
+                    .i32()
+                    .index_move(value_ptr + (read_offset as u32 * 4)),
+                ScriptVariableType::Special => {
+                    // Special cases (offset is ignored for these)
+                    if var_id == 0x3A {
+                        // FRIEND_SUM
+                        1
+                    } else if var_id == 0x3B {
+                        // UNIT_SUM
+                        // Possibly unused but definitely relatively complicated,
+                        // so not implemented for now.
+                        0
+                    } else if var_id == 0x3C {
+                        // CARRY_GOLD
+                        let misc_data_begin = emu
                             .memory()
                             .u32()
-                            .index_move(self.value_addrs.debug_special_episode_number)
-                            as i32,
-                        3 => {
-                            let (_, v) = self.read(emu, 0x4a, 0, srs);
-                            v
+                            .index_move(self.value_addrs.game_state_values);
+                        // Possibly who the money belongs to? Main team, Special episode team, etc.
+                        let some_sort_of_offset = emu.memory().u8().index_move(misc_data_begin + 0x388);
+                        let address_carry_gold =
+                            misc_data_begin + (some_sort_of_offset as u32 * 4) + 0x1394;
+                        emu.memory().u32().index_move(address_carry_gold) as i32
+                    } else if var_id == 0x3D {
+                        // BANK_GOLD
+                        let misc_data_begin = emu
+                            .memory()
+                            .u32()
+                            .index_move(self.value_addrs.game_state_values);
+                        let address_bank_gold = misc_data_begin + 0x13a0;
+                        emu.memory().u32().index_move(address_bank_gold) as i32
+                    } else if var_id == 0x47 {
+                        // LANGUAGE_TYPE
+                        emu.memory()
+                            .i8()
+                            .index_move(self.value_addrs.language_info_data + 1)
+                            as i32
+                    } else if var_id == 0x48 {
+                        // GAME_MODE
+                        emu.memory().u8().index_move(self.value_addrs.game_mode) as i32
+                    } else if var_id == 0x49 {
+                        // EXECUTE_SPECIAL_EPISODE_TYPE
+                        let game_mode = emu.memory().u8().index_move(self.value_addrs.game_mode);
+                        match game_mode {
+                            1 => emu
+                                .memory()
+                                .u32()
+                                .index_move(self.value_addrs.debug_special_episode_number)
+                                as i32,
+                            3 => {
+                                let (_, v) = self.read(emu, 0x4a, 0, srs);
+                                v
+                            }
+                            _ => 0,
                         }
-                        _ => 0,
+                    } else if var_id == 0x70 {
+                        // NOTE_MODIFY_FLAG
+                        emu.memory().u8().index_move(self.value_addrs.notify_note) as i32
+                    } else {
+                        0
                     }
-                } else if var_id == 0x70 {
-                    // NOTE_MODIFY_FLAG
-                    emu.memory().u8().index_move(self.value_addrs.notify_note) as i32
-                } else {
-                    0
                 }
-            }
-        };
-        (var.name.as_ref(), value)
+            };
+            (var.name.to_string(), value)
+        })
     }
 
     /// Saves a game variable.
@@ -192,7 +251,21 @@ impl GameVariableManipulator {
         value: u32,
         srs: Option<&ScriptRuntime>,
     ) {
-        let Some((var, is_local)) = self.get_var(var_id) else {
+        dbg_trace!("GameVariableManipulator::write - {var_id} - {read_offset} - {value}");
+
+        // todo very ugly but borrowing rules make this hard as a function
+        let defs = self.defs.borrow();
+        let maybe_var = if let Some(defs) = defs.as_ref() {
+            if var_id >= 0x400 {
+                defs.locals.get(var_id as usize - 0x400).map(|v| (v, true))
+            } else {
+                defs.globals.get(var_id as usize).map(|v| (v, false))
+            }
+        } else {
+            None
+        };
+
+        let Some((var, is_local)) = maybe_var else {
             warn!("Could not determine definition for variable {var_id}. Probably out of bounds. Write failed.");
             return;
         };
@@ -308,15 +381,21 @@ impl GameVariableManipulator {
         }
     }
 
-    fn get_var(&self, var_id: u16) -> Option<(&ScriptVariableDefinition, bool)> {
-        if var_id >= 0x400 {
-            self.defs
-                .locals
-                .get(var_id as usize - 0x400)
-                .map(|v| (v, true))
-        } else {
-            self.defs.globals.get(var_id as usize).map(|v| (v, false))
-        }
+    fn with_var<F, X>(&self, emu: &DeSmuME, var_id: u16, cb: F) -> X
+    where
+        F: Fn(Option<(&ScriptVariableDefinition, bool)>) -> X,
+    {
+        self.with_defs(emu, |maybe_defs| {
+            if let Ok(defs) = maybe_defs {
+                if var_id >= 0x400 {
+                    cb(defs.locals.get(var_id as usize - 0x400).map(|v| (v, true)))
+                } else {
+                    cb(defs.globals.get(var_id as usize).map(|v| (v, false)))
+                }
+            } else {
+                cb(None)
+            }
+        })
     }
 
     fn get_value_ptr(

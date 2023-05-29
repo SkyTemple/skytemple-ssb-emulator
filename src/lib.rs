@@ -17,6 +17,9 @@
  * along with SkyTemple.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#[macro_use]
+mod macros;
+
 mod alloc_table;
 mod display_buffer;
 mod eos_debug;

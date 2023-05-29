@@ -17,6 +17,7 @@
  * along with SkyTemple.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+use crate::alloc_table::EmulatorMemTable;
 use crate::display_buffer::DisplayBuffer;
 use crate::eos_debug::{
     BreakpointManager, BreakpointResumeInfo, BreakpointState, BreakpointStateType, EmulatorLogType,
@@ -47,7 +48,6 @@ use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
 use std::thread::{sleep, JoinHandle};
 use std::time::{Duration, Instant};
-use crate::alloc_table::EmulatorMemTable;
 
 pub static ERR_EMU_INIT: &str = "Emulator was not properly initialized.";
 
@@ -205,6 +205,7 @@ pub enum EmulatorCommand {
     Debug(DebugCommand),
 }
 
+#[derive(Debug)]
 pub enum HookExecute {
     /// An error to display.
     Error(String),
@@ -236,7 +237,10 @@ struct EmulatorThreadStateCreate<E>
 where
     E: SsbEmulator,
 {
-    state: EmulatorThreadState<E>,
+    emulator_create: fn() -> E,
+    command_channel_receive: Receiver<EmulatorCommand>,
+    command_channel_blocking_receive: BlockingReceiver<EmulatorCommand>,
+    hook_channel_send: Sender<HookExecute>,
     command_channel_send: Sender<EmulatorCommand>,
     command_channel_blocking_send: BlockingSender<EmulatorCommand>,
     hook_channel_receive: Receiver<HookExecute>,
@@ -244,20 +248,18 @@ where
 
 impl EmulatorThreadStateCreate<SsbEmulatorDesmumeGlobal> {
     fn create_desmume() -> Self {
-        let emulator = SsbEmulatorDesmumeGlobal::new();
+        dbg_trace!("EmulatorThreadStateCreate::create_desmume");
+        let emulator_create = SsbEmulatorDesmumeGlobal::new;
         let (command_channel_send, command_channel_receive) = unbounded();
         let (command_channel_blocking_send, command_channel_blocking_receive) =
             make_blocking_channel();
         let (hook_channel_send, hook_channel_receive) = unbounded();
-        let hook_channel_send = Rc::new(hook_channel_send);
 
         EmulatorThreadStateCreate {
-            state: EmulatorThreadState {
-                emulator,
-                command_channel_receive,
-                command_channel_blocking_receive,
-                hook_channel_send,
-            },
+            emulator_create,
+            command_channel_receive,
+            command_channel_blocking_receive,
+            hook_channel_send,
             command_channel_send,
             command_channel_blocking_send,
             hook_channel_receive,
@@ -266,8 +268,12 @@ impl EmulatorThreadStateCreate<SsbEmulatorDesmumeGlobal> {
 }
 
 pub fn init(cell: &mut Option<JoinHandle<()>>) {
+    dbg_trace!("init state");
     let EmulatorThreadStateCreate {
-        state,
+        emulator_create,
+        command_channel_receive,
+        command_channel_blocking_receive,
+        hook_channel_send,
         command_channel_send,
         command_channel_blocking_send,
         hook_channel_receive,
@@ -277,25 +283,44 @@ pub fn init(cell: &mut Option<JoinHandle<()>>) {
     COMMAND_CHANNEL_BLOCKING_SEND.with(|v| v.borrow_mut().replace(command_channel_blocking_send));
     HOOK_CHANNEL_RECEIVE.with(|v| v.borrow_mut().replace(hook_channel_receive));
 
-    cell.replace(emulator_thread(state));
+    cell.replace(emulator_thread(
+        emulator_create,
+        command_channel_receive,
+        command_channel_blocking_receive,
+        hook_channel_send,
+    ));
 }
 
-fn emulator_thread<E>(mut state: EmulatorThreadState<E>) -> JoinHandle<()>
+fn emulator_thread<E>(
+    emulator_create: fn() -> E,
+    command_channel_receive: Receiver<EmulatorCommand>,
+    command_channel_blocking_receive: BlockingReceiver<EmulatorCommand>,
+    hook_channel_send: Sender<HookExecute>,
+) -> JoinHandle<()>
 where
-    E: SsbEmulator + Send + 'static,
+    E: SsbEmulator + 'static,
 {
-    state
-        .emulator
-        .prepare_register_hooks(&state.hook_channel_send);
-
-    EMULATOR_JOYSTICK_SUPPORTS.store(state.emulator.supports_joystick(), Ordering::Release);
+    dbg_trace!("emulator_thread");
 
     thread::spawn(move || {
+        let mut state = EmulatorThreadState {
+            emulator: emulator_create(),
+            command_channel_receive,
+            command_channel_blocking_receive,
+            hook_channel_send: Rc::new(hook_channel_send),
+        };
+        state
+            .emulator
+            .prepare_register_hooks(&state.hook_channel_send);
+
+        EMULATOR_JOYSTICK_SUPPORTS.store(state.emulator.supports_joystick(), Ordering::Release);
+
         loop {
             // We can use relaxed ordering, as we really don't need any accuracy here.
             let mut boost_mode = BOOST_MODE.load(Ordering::Relaxed);
             // We can use relaxed ordering, since we are the only one writing to it.
             let mut tick_count = TICK_COUNT.load(Ordering::Relaxed);
+            dbg_trace!("emulator_thread - resume?");
             while {
                 let is_running = state.emulator.is_running();
                 EMULATOR_IS_RUNNING.store(is_running, Ordering::Release);
@@ -336,6 +361,7 @@ where
                 TICK_COUNT.store(tick_count, Ordering::Relaxed);
                 boost_mode = BOOST_MODE.load(Ordering::Relaxed);
             }
+            dbg_trace!("emulator_thread - paused");
 
             if !boost_mode || tick_count % 60 == 0 {
                 state.emulator.flush_display_buffer();

@@ -78,12 +78,14 @@ impl Default for EmulatorControls {
 #[pyfunction]
 /// Clears all pressed keys and buttons.
 pub fn emulator_unpress_all_keys() {
+    dbg_trace!("emulator_unpress_all_keys");
     command_channel_send(EmulatorCommand::UnpressAllKeys)
 }
 
 #[pyfunction]
 /// Initializes joystick support, if available, otherwise does nothing.
 pub fn emulator_joy_init() {
+    dbg_trace!("emulator_joy_init");
     command_channel_blocking_send(EmulatorCommand::JoyInit)
 }
 
@@ -107,6 +109,7 @@ pub fn emulator_load_controls(
     keyboard_cfg: Option<&PySequence>,
     joypad_cfg: Option<&PySequence>,
 ) -> PyResult<()> {
+    dbg_trace!("emulator_load_controls");
     EMULATOR_CONTROLS.with(|controls| {
         if let Some(keyboard_cfg) = keyboard_cfg {
             controls.borrow_mut().kbcfg = read_cfg(keyboard_cfg)?;
@@ -124,18 +127,21 @@ pub fn emulator_load_controls(
 #[pyfunction]
 /// Returns the currently active keyboard configuration.
 pub fn emulator_get_kbcfg(py: Python) -> PyObject {
+    dbg_trace!("emulator_get_kbcfg");
     EMULATOR_CONTROLS.with(|controls| controls.borrow().kbcfg.into_py(py))
 }
 
 #[pyfunction]
 /// Returns the currently active joystick configuration.
 pub fn emulator_get_jscfg(py: Python) -> PyObject {
+    dbg_trace!("emulator_get_jscfg");
     EMULATOR_CONTROLS.with(|controls| controls.borrow().jscfg.into_py(py))
 }
 
 #[pyfunction]
 /// Sets the currently active keyboard configuration.
 pub fn emulator_set_kbcfg(value: &PySequence) -> PyResult<()> {
+    dbg_trace!("emulator_set_kbcfg");
     EMULATOR_CONTROLS.with(|controls| {
         controls.borrow_mut().kbcfg = read_cfg(value)?;
         Ok(())
@@ -149,6 +155,7 @@ pub fn emulator_set_kbcfg(value: &PySequence) -> PyResult<()> {
 /// emulator's internals that control the joystick/gamepad.
 /// Useful when also using emulator_joy_get_set_key.
 pub fn emulator_set_jscfg(value: &PySequence, propagate_to_emulator: bool) -> PyResult<()> {
+    dbg_trace!("emulator_set_jscfg");
     EMULATOR_CONTROLS.with(|controls| {
         controls.borrow_mut().jscfg = read_cfg(value)?;
         if propagate_to_emulator {
@@ -163,6 +170,7 @@ pub fn emulator_set_jscfg(value: &PySequence, propagate_to_emulator: bool) -> Py
 #[pyfunction]
 /// Returns the keymask for key `k`. `k` is a constant of `EmulatorKeys`.
 pub fn emulator_keymask(key: u32) -> PyResult<u16> {
+    dbg_trace!("emulator_keymask");
     let key = match key {
         0 => EmulatorKeys::None,
         1 => EmulatorKeys::A,
@@ -188,30 +196,35 @@ pub fn emulator_keymask(key: u32) -> PyResult<u16> {
 #[pyfunction]
 /// Add a key to the keypad.
 pub fn emulator_keypad_add_key(keymask: u16) {
+    dbg_trace!("emulator_keypad_add_key");
     command_channel_send(EmulatorCommand::KeypadAddKey(keymask));
 }
 
 #[pyfunction]
 /// Remove a key from the keypad.
 pub fn emulator_keypad_rm_key(keymask: u16) {
+    dbg_trace!("emulator_keypad_rm_key");
     command_channel_send(EmulatorCommand::KeypadRmKey(keymask));
 }
 
 #[pyfunction]
 /// Touch and hold a point on the touchscreen.
 pub fn emulator_touch_set_pos(pos_x: u16, pos_y: u16) {
+    dbg_trace!("emulator_touch_set_pos");
     command_channel_send(EmulatorCommand::TouchSetPos(pos_x, pos_y));
 }
 
 #[pyfunction]
 /// Release the touchscreen.
 pub fn emulator_touch_release() {
+    dbg_trace!("emulator_touch_release");
     command_channel_send(EmulatorCommand::TouchRelease);
 }
 
 #[pyfunction]
 /// Returns whether the emulator supports joysticks.
 pub fn emulator_supports_joystick() -> bool {
+    dbg_trace!("emulator_supports_joystick");
     EMULATOR_JOYSTICK_SUPPORTS.load(Ordering::Acquire)
 }
 
@@ -219,6 +232,7 @@ pub fn emulator_supports_joystick() -> bool {
 /// Returns the number of connected joysticks to the passed callback.
 /// The callback is called eventually when the emulator is polled (`emulator_poll`).
 pub fn emulator_get_joy_number_connected(cb: PyObject) {
+    dbg_trace!("emulator_get_joy_number_connected");
     command_channel_send(EmulatorCommand::JoyGetNumberConnected(
         JoyGetNumberConnectedCallback(cb),
     ));
@@ -230,6 +244,7 @@ pub fn emulator_get_joy_number_connected(cb: PyObject) {
 /// This does not update the internal joystick control map. Collect set keys and after
 /// all changes use `emulator_set_jscfg`.
 pub fn emulator_joy_get_set_key(key: u16) {
+    dbg_trace!("emulator_joy_get_set_key");
     command_channel_blocking_send(EmulatorCommand::JoyGetSetKey(key));
 }
 

@@ -82,5 +82,6 @@ impl From<Language> for rs_desmume::Language {
 #[pyfunction]
 /// Set firmware language.
 pub fn emulator_set_language(lang: Language) {
+    dbg_trace!("emulator_set_language");
     command_channel_send(EmulatorCommand::SetLanguage(lang))
 }

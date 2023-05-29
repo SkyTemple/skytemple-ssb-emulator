@@ -28,10 +28,12 @@ use std::borrow::Cow;
 /// Polls new emulator events from the emulator thread and runs all pending hooks.
 /// All pending hook functions will be run blocking on the thread calling emulator_poll.
 pub fn emulator_poll(py: Python, error_consumer: PyObject) -> PyResult<()> {
+    dbg_trace!("emulator_poll");
     HOOK_CHANNEL_RECEIVE.with(|receiver_cell| {
         let receiver_opt = receiver_cell.borrow();
         let receiver = receiver_opt.as_ref().expect(ERR_EMU_INIT);
         for event in receiver.try_iter() {
+            dbg_trace!("emulator_poll - processing {event:?}");
             match event {
                 HookExecute::Error(err_msg) => {
                     error_consumer.call(py, (err_msg,), None)?;

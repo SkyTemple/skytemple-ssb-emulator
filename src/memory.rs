@@ -26,6 +26,7 @@ use pyo3::prelude::*;
 /// The chunk is passed to the callback as soon as it's available
 /// and `emulator_poll` has been called to poll the value.
 pub fn emulator_read_mem(address_start: u32, address_end: u32, cb: PyObject) {
+    dbg_trace!("emulator_read_mem - {address_start} - {address_end}");
     command_channel_send(EmulatorCommand::ReadMem(
         address_start..address_end,
         ReadMemCallback(cb),
@@ -38,6 +39,7 @@ pub fn emulator_read_mem(address_start: u32, address_end: u32, cb: PyObject) {
 /// The chunk is passed to the callback as soon as it's available
 /// and `emulator_poll` has been called to poll the value.
 pub fn emulator_read_mem_from_ptr(ptr: u32, shift: u32, size: u32, cb: PyObject) {
+    dbg_trace!("emulator_read_mem_from_ptr - {ptr} - {shift} - {size}");
     command_channel_send(EmulatorCommand::ReadMemFromPtr(
         ptr,
         shift,

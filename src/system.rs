@@ -24,7 +24,7 @@ use crate::state::{
 };
 use log::warn;
 
-use pyo3::{pyfunction};
+use pyo3::pyfunction;
 use std::ops::DerefMut;
 use std::sync::atomic::Ordering;
 
@@ -45,18 +45,21 @@ pub fn emulator_start() {
 #[pyfunction]
 /// Reset emulation. This also resets the game and fully reloads the ROM file.
 pub fn emulator_reset() {
+    dbg_trace!("emulator_reset");
     command_channel_blocking_send(EmulatorCommand::Reset)
 }
 
 #[pyfunction]
 /// Pause emulation, freezing the render and update loop.
 pub fn emulator_pause() {
+    dbg_trace!("emulator_pause");
     command_channel_blocking_send(EmulatorCommand::Pause)
 }
 
 #[pyfunction]
 /// Resume emulation, if it was paused.
 pub fn emulator_resume() {
+    dbg_trace!("emulator_resume");
     command_channel_blocking_send(EmulatorCommand::Resume)
 }
 
@@ -88,6 +91,7 @@ pub fn emulator_open_rom(
     debug_special_episode_number: u32,
     notify_note: u32,
 ) {
+    dbg_trace!("emulator_open_rom - {filename}");
     command_channel_blocking_send(EmulatorCommand::OpenRom(
         filename,
         address_loaded_overlay_group_1,
@@ -109,6 +113,7 @@ pub fn emulator_open_rom(
 #[pyfunction]
 /// Shuts down the emulator. It can be loaded again after this.
 pub fn emulator_shutdown() {
+    dbg_trace!("emulator_shutdown");
     command_channel_blocking_send(EmulatorCommand::Shutdown)
 }
 
@@ -116,29 +121,34 @@ pub fn emulator_shutdown() {
 /// Returns a value close or equal to the current tick count of the emulator.
 /// Rolls over at the u64 limit.
 pub fn emulator_tick() -> u64 {
+    dbg_trace!("emulator_tick");
     TICK_COUNT.load(Ordering::Relaxed)
 }
 
 #[pyfunction]
 /// Returns `true`, if a game is loaded and the emulator is running (not paused).
 pub fn emulator_is_running() -> bool {
+    dbg_trace!("emulator_is_running");
     EMULATOR_IS_RUNNING.load(Ordering::Acquire)
 }
 
 #[pyfunction]
 /// Set the emulator volume (0-100).
 pub fn emulator_volume_set(volume: u8) {
+    dbg_trace!("emulator_volume_set - {volume}");
     command_channel_send(EmulatorCommand::VolumeSet(volume))
 }
 
 #[pyfunction]
 /// Queues the emulator to save a savestate file to the given path. May also do this blocking.
 pub fn emulator_savestate_save_file(filename: String) {
+    dbg_trace!("emulator_savestate_save_file - {filename}");
     command_channel_blocking_send(EmulatorCommand::SavestateSaveFile(filename))
 }
 
 #[pyfunction]
 /// Queues the emulator to load a savestate file from the given path. May also do this blocking.
 pub fn emulator_savestate_load_file(filename: String) {
+    dbg_trace!("emulator_savestate_load_file - {filename}");
     command_channel_blocking_send(EmulatorCommand::SavestateLoadFile(filename))
 }

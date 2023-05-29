@@ -27,14 +27,14 @@ use std::ptr;
 
 pub const DISPLAY_BUFFER_SIZE: usize = SCREEN_WIDTH * SCREEN_HEIGHT_BOTH * 4;
 
-/// Double-buffered display buffer.
+/// Display buffer.
 #[derive(Debug, Clone)]
 pub struct DisplayBuffer {
     slot_a: [u8; DISPLAY_BUFFER_SIZE],
-    slot_b: [u8; DISPLAY_BUFFER_SIZE],
-    // These will always either point to one or the other slot.
-    read: Cell<*mut [u8; DISPLAY_BUFFER_SIZE]>,
-    write: Cell<*mut [u8; DISPLAY_BUFFER_SIZE]>,
+    //slot_b: [u8; DISPLAY_BUFFER_SIZE],
+    // We use one for now, because this seems fine and there is no tearing.
+    read_write: Cell<*mut [u8; DISPLAY_BUFFER_SIZE]>,
+    //write: Cell<*mut [u8; DISPLAY_BUFFER_SIZE]>,
 }
 
 impl Default for DisplayBuffer {
@@ -48,27 +48,31 @@ impl DisplayBuffer {
     pub fn new() -> Self {
         let mut slf = Self {
             slot_a: [0; DISPLAY_BUFFER_SIZE],
-            slot_b: [0; DISPLAY_BUFFER_SIZE],
-            read: Cell::new(ptr::null_mut()),
-            write: Cell::new(ptr::null_mut()),
+            //slot_b: [0; DISPLAY_BUFFER_SIZE],
+            read_write: Cell::new(ptr::null_mut()),
+            //write: Cell::new(ptr::null_mut()),
         };
-        slf.read.set(&mut slf.slot_a);
-        slf.write.set(&mut slf.slot_b);
+        slf.read_write.set(&mut slf.slot_a);
+        //slf.write.set(&mut slf.slot_a);//slf.write.set(&mut slf.slot_b);
         slf
     }
 
     /// Returns the current active display buffer.
     ///
     /// # Safety
-    /// After [`write`] has been called and finished, the next [`write`] call
-    /// will modify the contents of the slice returned by this function.
-    /// As such the slice should be consumed fast.
+    /// The returned buffer is also being written to periodically, it is thus not strictly
+    /// memory safe.
+    // Below is not relevant, this is not double-buffered at the moment.
+    // # Safety
+    // After [`write`] has been called and finished, the next [`write`] call
+    // will modify the contents of the slice returned by this function.
+    // As such the slice should be consumed fast.
     pub unsafe fn read(&self) -> &[u8; DISPLAY_BUFFER_SIZE] {
-        &*self.read.get()
+        &*self.read_write.get()
     }
 
     /// Passes a mutable reference to the inactive display buffer to the callback.
-    /// After the callback completed, the inactive and active buffers are swapped.
+    // NOT TRUE: After the callback completed, the inactive and active buffers are swapped.
     ///
     /// # Safety
     /// This must only ever be called by a single writing thread.
@@ -77,8 +81,8 @@ impl DisplayBuffer {
         F: FnOnce(&'b mut [u8; DISPLAY_BUFFER_SIZE]),
         'a: 'b,
     {
-        write_cb(&mut *self.write.get());
-        self.write.swap(&self.read);
+        write_cb(&mut *self.read_write.get());
+        //self.write.swap(&self.read);
     }
 }
 

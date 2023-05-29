@@ -64,6 +64,7 @@ pub enum BreakpointStateType {
 /// Enable or disable boost mode. In this mode some debugging hooks may not be executed to improve
 /// emulator performance.
 pub fn emulator_set_boost(state: bool) {
+    dbg_trace!("emulator_set_boost - {state}");
     BOOST_MODE.store(state, Ordering::Relaxed)
 }
 
@@ -76,6 +77,7 @@ pub fn emulator_register_script_variable_set(
     save_script_value_at_index_addr: Option<&PySequence>,
     hook: PyObject,
 ) -> PyResult<()> {
+    dbg_trace!("emulator_register_script_variable_set");
     command_channel_send(EmulatorCommand::Debug(
         DebugCommand::RegisterScriptVariableSet {
             save_script_value_addr: read_hook_addr(save_script_value_addr)?,
@@ -89,6 +91,7 @@ pub fn emulator_register_script_variable_set(
 #[pyfunction]
 /// Unregister all potentially previously registered hooks for setting script variables.
 pub fn emulator_unregister_script_variable_set() {
+    dbg_trace!("emulator_unregister_script_variable_set");
     command_channel_send(EmulatorCommand::Debug(
         DebugCommand::UnregisterScriptVariableSet,
     ))
@@ -105,6 +108,7 @@ pub fn emulator_register_script_debug(
     func_that_calls_command_parsing_addr: Option<&PySequence>,
     hook: PyObject,
 ) -> PyResult<()> {
+    dbg_trace!("emulator_register_script_debug");
     command_channel_send(EmulatorCommand::Debug(DebugCommand::RegisterScriptDebug {
         func_that_calls_command_parsing_addr: read_hook_addr(func_that_calls_command_parsing_addr)?,
         hook: DebugRegisterScriptDebugCallback(hook),
@@ -115,6 +119,7 @@ pub fn emulator_register_script_debug(
 #[pyfunction]
 /// Unregister all potentially previously registered hooks for processing script debugging events.
 pub fn emulator_unregister_script_debug() {
+    dbg_trace!("emulator_unregister_script_debug");
     command_channel_send(EmulatorCommand::Debug(DebugCommand::UnregisterScriptDebug))
 }
 
@@ -139,6 +144,7 @@ pub fn emulator_register_debug_print(
     // def _(type: EmulatorLogType, msg: str)
     hook: PyObject,
 ) -> PyResult<()> {
+    dbg_trace!("emulator_register_debug_print");
     command_channel_send(EmulatorCommand::Debug(DebugCommand::RegisterDebugPrint {
         printf_r0_functions_addr: read_hook_addr(printf_r0_functions_addr)?,
         printf_r1_functions_addr: read_hook_addr(printf_r1_functions_addr)?,
@@ -151,6 +157,7 @@ pub fn emulator_register_debug_print(
 #[pyfunction]
 /// Unregister all potentially previously registered hooks for processing debug print logging.
 pub fn emulator_unregister_debug_print() {
+    dbg_trace!("emulator_unregister_debug_print");
     command_channel_send(EmulatorCommand::Debug(DebugCommand::UnregisterDebugPrint))
 }
 
@@ -181,6 +188,7 @@ pub fn emulator_register_debug_flag(
     script_get_debug_mode_addr: Option<&PySequence>,
     hook: PyObject,
 ) -> PyResult<()> {
+    dbg_trace!("emulator_register_debug_flag");
     command_channel_send(EmulatorCommand::Debug(DebugCommand::RegisterDebugFlag {
         get_debug_flag_1_addr: read_hook_addr(get_debug_flag_1_addr)?,
         get_debug_flag_2_addr: read_hook_addr(get_debug_flag_2_addr)?,
@@ -195,6 +203,7 @@ pub fn emulator_register_debug_flag(
 #[pyfunction]
 /// Unregister all potentially previously registered hooks for processing debug flags.
 pub fn emulator_unregister_debug_flag() {
+    dbg_trace!("emulator_unregister_debug_flag");
     command_channel_send(EmulatorCommand::Debug(DebugCommand::UnregisterDebugFlag))
 }
 
@@ -204,6 +213,7 @@ pub fn emulator_unregister_debug_flag() {
 ///
 /// The hook is not called should overlay 11 not be loaded.
 pub fn emulator_register_exec_ground(addr: u32, hook: Option<PyObject>) {
+    dbg_trace!("emulator_register_exec_ground");
     command_channel_send(EmulatorCommand::Debug(DebugCommand::RegisterExecGround {
         addr,
         hook: hook.map(DebugRegisterExecGroundCallback),
@@ -220,6 +230,7 @@ pub fn emulator_register_ssb_load(
     // def _(name: str)
     hook: PyObject,
 ) -> PyResult<()> {
+    dbg_trace!("emulator_register_ssb_load");
     command_channel_send(EmulatorCommand::Debug(DebugCommand::RegisterSsbLoad {
         ssb_load_addrs: read_hook_addr(ssb_load_addrs)?,
         hook: DebugRegisterSsbLoadCallback(hook),
@@ -230,6 +241,7 @@ pub fn emulator_register_ssb_load(
 #[pyfunction]
 /// Unregister SSB load hook.
 pub fn emulator_unregister_ssb_load() {
+    dbg_trace!("emulator_unregister_ssb_load");
     command_channel_send(EmulatorCommand::Debug(DebugCommand::UnregisterSsbLoad))
 }
 
@@ -242,6 +254,7 @@ pub fn emulator_register_ssx_load(
     ssx_load_addrs: Option<&PySequence>,
     hook: PyObject,
 ) -> PyResult<()> {
+    dbg_trace!("emulator_register_ssx_load");
     command_channel_send(EmulatorCommand::Debug(DebugCommand::RegisterSsxLoad {
         ssx_load_addrs: read_hook_addr(ssx_load_addrs)?,
         hook: DebugRegisterSsxLoadCallback(hook),
@@ -252,6 +265,7 @@ pub fn emulator_register_ssx_load(
 #[pyfunction]
 /// Unregister SSx load hook.
 pub fn emulator_unregister_ssx_load() {
+    dbg_trace!("emulator_unregister_ssx_load");
     command_channel_send(EmulatorCommand::Debug(DebugCommand::UnregisterSsxLoad))
 }
 
@@ -264,6 +278,7 @@ pub fn emulator_register_talk_load(
     talk_load_addrs: Option<&PySequence>,
     hook: PyObject,
 ) -> PyResult<()> {
+    dbg_trace!("emulator_register_talk_load");
     command_channel_send(EmulatorCommand::Debug(DebugCommand::RegisterTalkLoad {
         talk_load_addrs: read_hook_addr(talk_load_addrs)?,
         hook: DebugRegisterTalkLoadCallback(hook),
@@ -274,6 +289,7 @@ pub fn emulator_register_talk_load(
 #[pyfunction]
 /// Unregister SSx talk load hook.
 pub fn emulator_unregister_talk_load() {
+    dbg_trace!("emulator_unregister_talk_load");
     command_channel_send(EmulatorCommand::Debug(DebugCommand::UnregisterTalkLoad))
 }
 
@@ -281,6 +297,7 @@ pub fn emulator_unregister_talk_load() {
 /// Registers a hook for watching the unionall pointer. This allows retreiving it at any time via
 /// [`emulator_unionall_load_address`].
 pub fn emulator_register_unionall_load_addr_change(unionall_pointer: u32) {
+    dbg_trace!("emulator_register_unionall_load_addr_change");
     command_channel_send(EmulatorCommand::Debug(
         DebugCommand::RegisterUnionallLoadAddrChange(unionall_pointer),
     ))
@@ -290,6 +307,7 @@ pub fn emulator_register_unionall_load_addr_change(unionall_pointer: u32) {
 /// Unregister unionall update watcher. The address returned will now no longer match the game
 /// state.
 pub fn emulator_unregister_unionall_load_addr_change() {
+    dbg_trace!("emulator_unregister_unionall_load_addr_change");
     command_channel_send(EmulatorCommand::Debug(
         DebugCommand::UnregisterUnionallLoadAddrChange,
     ))
@@ -298,6 +316,7 @@ pub fn emulator_unregister_unionall_load_addr_change() {
 #[pyfunction]
 /// Returns the address unionall is loaded at currently. May return 0 if not determinable.
 pub fn emulator_unionall_load_address() -> u32 {
+    dbg_trace!("emulator_unionall_load_address");
     UNIONALL_LOAD_ADDRESS.load(Ordering::Acquire)
 }
 
@@ -305,6 +324,7 @@ pub fn emulator_unionall_load_address() -> u32 {
 /// Fetches the current unionall load address from the emulator into the cache.
 /// This requires `emulator_register_unionall_load_addr_change` to be called before.
 pub fn emulator_unionall_load_address_update() {
+    dbg_trace!("emulator_unionall_load_address_update");
     command_channel_blocking_send(EmulatorCommand::Debug(
         DebugCommand::UnionallLoadAddressUpdate,
     ))
@@ -314,6 +334,7 @@ pub fn emulator_unionall_load_address_update() {
 /// Queues writing the game variable to the game.
 /// This is done at latest the next time the emulator's memory is ready to be written to.
 pub fn emulator_write_game_variable(var_id: u32, var_offset: u32, value: u32) {
+    dbg_trace!("emulator_write_game_variable - {var_id} - {var_offset} - {value}");
     command_channel_send(EmulatorCommand::Debug(DebugCommand::WriteGameVariable {
         var_id,
         var_offset,
@@ -325,6 +346,7 @@ pub fn emulator_write_game_variable(var_id: u32, var_offset: u32, value: u32) {
 /// Queues writing the debug mode state.
 /// This is done at latest the next time the emulator's memory is ready to be written to.
 pub fn emulator_set_debug_mode(value: bool) {
+    dbg_trace!("emulator_set_debug_mode - {value}");
     command_channel_send(EmulatorCommand::Debug(DebugCommand::SetDebugMode(value)));
 }
 
@@ -332,6 +354,7 @@ pub fn emulator_set_debug_mode(value: bool) {
 /// Queues writing a bit of debug flag 1.
 /// This is done at latest the next time the emulator's memory is ready to be written to.
 pub fn emulator_set_debug_flag_1(bit: usize, value: bool) {
+    dbg_trace!("emulator_set_debug_flag_1 - {bit} - {value}");
     command_channel_send(EmulatorCommand::Debug(DebugCommand::SetDebugFlag1(
         bit, value,
     )));
@@ -341,6 +364,7 @@ pub fn emulator_set_debug_flag_1(bit: usize, value: bool) {
 /// Queues writing a bit of debug flag 2.
 /// This is done at latest the next time the emulator's memory is ready to be written to.
 pub fn emulator_set_debug_flag_2(bit: usize, value: bool) {
+    dbg_trace!("emulator_set_debug_flag_2 - {bit} - {value}");
     command_channel_send(EmulatorCommand::Debug(DebugCommand::SetDebugFlag2(
         bit, value,
     )));
@@ -350,6 +374,7 @@ pub fn emulator_set_debug_flag_2(bit: usize, value: bool) {
 /// Retrieve the values of global variable values from the emulator and passes
 /// them to the callback when ready and [`emulator_poll`] is called.
 pub fn emulator_sync_vars(cb: PyObject) {
+    dbg_trace!("emulator_sync_vars");
     command_channel_send(EmulatorCommand::Debug(DebugCommand::SyncGlobalVars(
         DebugSyncGlobalVarsCallback(cb),
     )));
@@ -359,6 +384,7 @@ pub fn emulator_sync_vars(cb: PyObject) {
 /// Retrieve the values of local variable values from the emulator and passes
 /// them to the callback when ready and [`emulator_poll`] is called.
 pub fn emulator_sync_local_vars(addr_of_pnt_to_breaked_for_entity: u32, cb: PyObject) {
+    dbg_trace!("emulator_sync_local_vars");
     command_channel_send(EmulatorCommand::Debug(DebugCommand::SyncLocalVars(
         addr_of_pnt_to_breaked_for_entity,
         DebugSyncLocalVarsCallback(cb),
@@ -369,6 +395,7 @@ pub fn emulator_sync_local_vars(addr_of_pnt_to_breaked_for_entity: u32, cb: PyOb
 /// Synchronize and retrieve and return the memory allocation tables and pass
 /// them to the callback when ready and [`emulator_poll`] is called.
 pub fn emulator_sync_tables(addr_mem_alloc_table: u32, cb: PyObject) {
+    dbg_trace!("addr_mem_alloc_table");
     command_channel_send(EmulatorCommand::Debug(DebugCommand::SyncMemTables(
         addr_mem_alloc_table,
         DebugSyncMemTablesCallback(cb),
@@ -437,6 +464,7 @@ pub struct BreakpointManager {
 
 impl BreakpointManager {
     fn new(breakpoints_json_filename: &str) -> Self {
+        dbg_trace!("BreakpointManager::new - {breakpoints_json_filename}");
         let breakpoints_json_path = PathBuf::from(breakpoints_json_filename);
 
         let breakpoint_mapping: HashMap<String, HashSet<u32>> = {
@@ -470,15 +498,18 @@ impl BreakpointManager {
         on_breakpoint_added: BreakpointChangeCallback,
         on_breakpoint_removed: BreakpointChangeCallback,
     ) {
+        dbg_trace!("BreakpointManager::register_callbacks");
         self.callbacks_add.push(on_breakpoint_added);
         self.callbacks_remove.push(on_breakpoint_removed);
     }
 
     fn set_loaded_ssb_breakable(&mut self, ssb_filename: &str, value: bool) {
+        dbg_trace!("BreakpointManager::set_loaded_ssb_breakable - {ssb_filename} - {value}");
         self.ssb_breakable.insert(ssb_filename.to_string(), value);
     }
 
     fn resync(&mut self, ssb_filename: &str, b_points: &PySequence, ssb: &PyAny) -> PyResult<()> {
+        dbg_trace!("BreakpointManager::resync - {ssb_filename}");
         debug!("{ssb_filename}: Breakpoint resync");
         let ram_state_up_to_date = ssb.getattr("ram_state_up_to_date")?.extract()?;
         let ssb_filename = ssb_filename.to_string();
@@ -521,6 +552,7 @@ impl BreakpointManager {
     }
 
     fn wait_for_ssb_update(&mut self, ssb: &PyAny) -> PyResult<()> {
+        dbg_trace!("BreakpointManager::wait_for_ssb_update");
         let ssb_filename: &str = ssb.getattr("filename")?.extract()?;
         debug!("got ssb update for {ssb_filename}");
         if self.new_breakpoint_mapping.contains_key(ssb_filename) {
@@ -533,6 +565,7 @@ impl BreakpointManager {
     }
 
     fn add(&mut self, py: Python, ssb_filename: &str, opcode_offset: u32) -> PyResult<()> {
+        dbg_trace!("BreakpointManager::add - {ssb_filename} - {opcode_offset}");
         debug!("{ssb_filename}: Breakpoint add: {opcode_offset}");
         let entry = self
             .breakpoint_mapping
@@ -553,6 +586,7 @@ impl BreakpointManager {
     }
 
     fn remove(&mut self, py: Python, ssb_filename: &str, opcode_offset: u32) -> PyResult<()> {
+        dbg_trace!("BreakpointManager::remove - {ssb_filename} - {opcode_offset}");
         debug!("{ssb_filename}: Breakpoint remove: {opcode_offset}");
         if let Some(entry) = self.breakpoint_mapping.get_mut(ssb_filename) {
             if entry.remove(&opcode_offset) {
@@ -568,6 +602,7 @@ impl BreakpointManager {
 
     /// Return the breakpoints that are saved in RAM for fn. These might be the tempoary breakpoints we stored!
     fn get_saved_in_ram_for(&mut self, ssb_filename: &str) -> Vec<u32> {
+        dbg_trace!("BreakpointManager::get_saved_in_ram_for - {ssb_filename}");
         let mut buffer = Vec::with_capacity(50);
         if let Some(ops) = self.new_breakpoint_mapping.get(ssb_filename) {
             for opoff in ops {
@@ -585,6 +620,7 @@ impl BreakpointManager {
     /// Checks if the breakpoint is in the active mapping or is the temporary breakpoint.
     /// script_target_* are only relevant for checking the temporary breakpoint.
     pub(crate) fn has(&self, filename: &str, info: &BreakpointInfo) -> bool {
+        dbg_trace!("BreakpointManager::has - {filename}");
         for tbp in &self.temporary_breakpoints {
             if tbp.matches(info) {
                 return true;
@@ -605,6 +641,7 @@ impl BreakpointManager {
     }
 
     pub(crate) fn reset_temporary(&mut self) {
+        dbg_trace!("BreakpointManager::reset_temporary");
         debug!("Reset temporary");
         self.temporary_breakpoints = vec![];
     }
@@ -621,6 +658,7 @@ impl BreakpointManager {
     ///
     /// See has.
     pub(crate) fn add_temporary(&mut self, info: BreakpointInfo) {
+        dbg_trace!("BreakpointManager::add_temporary");
         debug!("Set temporary: {info:?}");
         self.temporary_breakpoints.push(info);
     }
@@ -653,6 +691,7 @@ impl BreakPointManagerPyWaitForSsbUpdateCallback {
 #[pyfunction]
 /// (Re)-initializes the debug breakpoint manager.
 pub fn emulator_debug_init_breakpoint_manager(breakpoints_json_filename: &str) {
+    dbg_trace!("emulator_debug_init_breakpoint_manager");
     *BREAKPOINT_MANAGER.lock().unwrap() = Some(BreakpointManager::new(breakpoints_json_filename));
 }
 
@@ -662,6 +701,7 @@ pub fn emulator_debug_init_breakpoint_manager(breakpoints_json_filename: &str) {
 ///
 /// Defaults to true for all files.
 pub fn emulator_debug_set_loaded_ssb_breakable(ssb_filename: &str, value: bool) {
+    dbg_trace!("emulator_debug_set_loaded_ssb_breakable - {ssb_filename} - {value}");
     BREAKPOINT_MANAGER
         .lock()
         .unwrap()
@@ -673,6 +713,7 @@ pub fn emulator_debug_set_loaded_ssb_breakable(ssb_filename: &str, value: bool) 
 #[pyfunction]
 /// Whether halting at breakpoints is currently globally disabled.
 pub fn emulator_debug_breakpoints_disabled_get() -> bool {
+    dbg_trace!("emulator_debug_breakpoints_disabled_get");
     BREAKPOINT_MANAGER
         .lock()
         .unwrap()
@@ -684,6 +725,7 @@ pub fn emulator_debug_breakpoints_disabled_get() -> bool {
 #[pyfunction]
 /// Set whether halting at breakpoints is currently globally disabled.
 pub fn emulator_debug_breakpoints_disabled_set(value: bool) {
+    dbg_trace!("emulator_debug_breakpoints_disabled_set");
     BREAKPOINT_MANAGER
         .lock()
         .unwrap()
@@ -707,6 +749,7 @@ pub fn emulator_debug_breakpoints_resync(
     b_points: &PySequence,
     ssb_loaded_file: &PyAny,
 ) -> PyResult<()> {
+    dbg_trace!("emulator_debug_breakpoints_resync - {ssb_filename}");
     BREAKPOINT_MANAGER
         .lock()
         .unwrap()
@@ -722,6 +765,7 @@ pub fn emulator_debug_breakpoint_add(
     ssb_filename: &str,
     opcode_offset: u32,
 ) -> PyResult<()> {
+    dbg_trace!("emulator_debug_breakpoint_add - {ssb_filename} - {opcode_offset}");
     BREAKPOINT_MANAGER
         .lock()
         .unwrap()
@@ -737,6 +781,7 @@ pub fn emulator_debug_breakpoint_remove(
     ssb_filename: &str,
     opcode_offset: u32,
 ) -> PyResult<()> {
+    dbg_trace!("emulator_debug_breakpoint_remove - {ssb_filename} - {opcode_offset}");
     BREAKPOINT_MANAGER
         .lock()
         .unwrap()
@@ -748,6 +793,7 @@ pub fn emulator_debug_breakpoint_remove(
 #[pyfunction]
 /// Returns all breakpoints currently stored for the given ssb file in RAM.
 pub fn emulator_breakpoints_get_saved_in_ram_for(ssb_filename: &str) -> Vec<u32> {
+    dbg_trace!("emulator_breakpoints_get_saved_in_ram_for - {ssb_filename}");
     BREAKPOINT_MANAGER
         .lock()
         .unwrap()
@@ -764,6 +810,7 @@ pub fn emulator_debug_register_breakpoint_callbacks(
     on_breakpoint_added: PyObject,
     on_breakpoint_removed: PyObject,
 ) {
+    dbg_trace!("emulator_debug_register_breakpoint_callbacks");
     BREAKPOINT_MANAGER
         .lock()
         .unwrap()
@@ -787,6 +834,7 @@ pub fn emulator_breakpoints_set_loaded_ssb_files(
     hanger5: Option<&str>,
     hanger6: Option<&str>,
 ) {
+    dbg_trace!("emulator_breakpoints_set_loaded_ssb_files");
     BREAKPOINT_MANAGER
         .lock()
         .unwrap()
@@ -806,6 +854,7 @@ pub fn emulator_breakpoints_set_loaded_ssb_files(
 #[pyfunction]
 /// Set the hanger that an SSB will be loaded for next. This is needed when loading save states, resetting the ROM etc.
 pub fn emulator_breakpoints_set_load_ssb_for(hanger_id: Option<u8>) {
+    dbg_trace!("emulator_breakpoints_set_load_ssb_for - {hanger_id:?}");
     BREAKPOINT_MANAGER
         .lock()
         .unwrap()
@@ -814,6 +863,7 @@ pub fn emulator_breakpoints_set_load_ssb_for(hanger_id: Option<u8>) {
         .load_ssb_for = hanger_id
 }
 
+#[derive(Debug)]
 #[pyclass]
 /// The current state of the stepping mechanism of the debugger.
 /// If is_stopped(), the code execution of the emulator thread is currently on hold.
@@ -843,6 +893,7 @@ impl BreakpointState {
     /// Creates a new breakpoint state.
     /// NOTE: This also sets the global break resume info to stopped.
     pub(crate) fn new(srs: &ScriptRuntime, script_target_slot_id: u32) -> Self {
+        dbg_trace!("BreakpointState::new - {script_target_slot_id}");
         let break_signal = BREAK.clone();
         let (break_mutex, _) = &*break_signal;
         let mut state_now = break_mutex
@@ -870,16 +921,19 @@ impl BreakpointState {
 impl BreakpointState {
     /// Called when polling the emulator after the debugging break has been released.
     pub fn add_release_hook(&mut self, hook: PyObject) {
+        dbg_trace!("BreakpointState::add_release_hook");
         self.release_hooks
             .push(BreakpointStateReleaseCallback(hook));
     }
 
     pub fn is_stopped(&self) -> bool {
+        dbg_trace!("BreakpointState::is_stopped");
         self.state == BreakpointStateType::Stopped
     }
 
     /// Immediately abort debugging and don't break again it this tick.
     pub fn fail_hard(slf: &PyCell<Self>) -> PyResult<()> {
+        dbg_trace!("BreakpointState::fail_hard");
         let mut slfbrw = slf.borrow_mut();
         slfbrw.state = BreakpointStateType::FailHard;
         Self::wakeup(slf)
@@ -887,6 +941,7 @@ impl BreakpointState {
 
     /// Resume normal code execution.
     pub fn resume(slf: &PyCell<Self>) -> PyResult<()> {
+        dbg_trace!("BreakpointState::resume");
         let mut slfbrw = slf.borrow_mut();
         slfbrw.state = BreakpointStateType::Resume;
         Self::wakeup(slf)
@@ -895,6 +950,7 @@ impl BreakpointState {
     /// Step into the current call (if it's a call that creates a call stack), otherwise same as
     /// step over.
     pub fn step_into(slf: &PyCell<Self>) -> PyResult<()> {
+        dbg_trace!("BreakpointState::step_into");
         let mut slfbrw = slf.borrow_mut();
         slfbrw.state = BreakpointStateType::StepInto;
         Self::wakeup(slf)
@@ -903,6 +959,7 @@ impl BreakpointState {
     /// Step over the current call (remain in the current script file + skip debugging any calls
     /// to subroutines).
     pub fn step_over(slf: &PyCell<Self>) -> PyResult<()> {
+        dbg_trace!("BreakpointState::step_over");
         let mut slfbrw = slf.borrow_mut();
         slfbrw.state = BreakpointStateType::StepOver;
         Self::wakeup(slf)
@@ -910,6 +967,7 @@ impl BreakpointState {
 
     /// Step out of the current routine, if there's a call stack, otherwise same as resume.
     pub fn step_out(slf: &PyCell<Self>) -> PyResult<()> {
+        dbg_trace!("BreakpointState::step_out");
         let mut slfbrw = slf.borrow_mut();
         slfbrw.state = BreakpointStateType::StepOut;
         Self::wakeup(slf)
@@ -917,6 +975,7 @@ impl BreakpointState {
 
     /// Break at the next opcode, even if it's for a different script target.
     pub fn step_next(slf: &PyCell<Self>) -> PyResult<()> {
+        dbg_trace!("BreakpointState::step_next");
         let mut slfbrw = slf.borrow_mut();
         slfbrw.state = BreakpointStateType::StepNext;
         Self::wakeup(slf)
@@ -924,6 +983,7 @@ impl BreakpointState {
 
     /// Transition to the StepManual state and set the opcode to halt at.
     pub fn step_manual(slf: &PyCell<Self>, opcode_offset: u32) -> PyResult<()> {
+        dbg_trace!("BreakpointState::step_manual - {opcode_offset}");
         let mut slfbrw = slf.borrow_mut();
         slfbrw.state = BreakpointStateType::StepManual;
         slfbrw.manual_step_opcode_offset = Some(opcode_offset);
@@ -932,6 +992,7 @@ impl BreakpointState {
 
     /// Transition to the specified state. Can not transition to Stopped.
     pub fn transition(slf: &PyCell<Self>, state_type: BreakpointStateType) -> PyResult<()> {
+        dbg_trace!("BreakpointState::transition");
         let mut slfbrw = slf.borrow_mut();
         if state_type == BreakpointStateType::Stopped {
             return Err(PyValueError::new_err(
@@ -943,6 +1004,8 @@ impl BreakpointState {
     }
 
     pub fn wakeup(slf: &PyCell<Self>) -> PyResult<()> {
+        dbg_trace!("BreakpointState::wakeup");
+        debug!("Breakpoint State: Waking up");
         let slfbrw = slf.borrow();
         // Wakeup debugger
         let break_signal = BREAK.clone();

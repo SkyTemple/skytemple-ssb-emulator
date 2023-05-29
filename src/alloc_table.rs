@@ -76,6 +76,7 @@ pub struct EmulatorMemTableEntry {
 impl EmulatorMemTableEntry {
     /// Passes the bytes of the entry to the callback when ready and emulator_poll is called.
     pub fn dump(&self, cb: PyObject) {
+        dbg_trace!("EmulatorMemTable::dump - {self:?}");
         command_channel_send(EmulatorCommand::Debug(DebugCommand::DumpMemTableEntry(
             EmulatorMemTableEntryCallback(cb),
             self.start_address,
@@ -106,6 +107,7 @@ pub struct EmulatorMemTable {
 
 impl EmulatorMemTable {
     pub fn read(emu: &DeSmuME, addr_ptr: u32) -> Self {
+        dbg_trace!("EmulatorMemTable::read - {addr_ptr}");
         let start_address = emu.memory().u32().index_move(addr_ptr);
         let parent_table = emu.memory().u32().index_move(start_address + 0x4);
         let addr_table = emu.memory().u32().index_move(start_address + 0x8);
