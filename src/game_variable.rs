@@ -36,7 +36,7 @@ pub struct GameVariablesValueAddresses {
 }
 
 pub struct GameVariableManipulator {
-    defs: ScriptVariableTables,
+    pub defs: ScriptVariableTables,
     value_addrs: GameVariablesValueAddresses,
 }
 
@@ -61,13 +61,16 @@ impl GameVariableManipulator {
         emu: &DeSmuME,
         var_id: u16,
         read_offset: u16,
-        srs: &ScriptRuntime,
+        srs: Option<&ScriptRuntime>,
     ) -> (&'a str, i32) {
         let Some((var, is_local)) = self.get_var(var_id) else {
             warn!("Could not determine correct value for variable {var_id}. Probably corruption.");
             return ("?", -1);
         };
-        let value_ptr = self.get_value_ptr(is_local, var, Some(srs)).unwrap();
+        let Some(value_ptr) = self.get_value_ptr(is_local, var, srs) else {
+            warn!("Could not get local variable because no script runtime was provided.");
+            return ("?", -1);
+        };
         let value = match var.data.r#type {
             ScriptVariableType::None => 0,
             ScriptVariableType::Bit => {

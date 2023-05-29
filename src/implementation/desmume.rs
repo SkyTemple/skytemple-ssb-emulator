@@ -17,6 +17,7 @@
  * along with SkyTemple.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+use crate::alloc_table::EmulatorMemTable;
 use crate::eos_debug::{
     BreakpointInfo, BreakpointState, BreakpointStateType, EmulatorLogType, MAX_SSB, MAX_SSX,
     TALK_HANGER_OFFSET,
@@ -42,6 +43,7 @@ use skytemple_rust::st_script_var_table::{
 use sprintf::{vsprintf, Printf};
 use std::borrow::Cow;
 use std::cell::{RefCell, UnsafeCell};
+use std::collections::HashMap;
 use std::ffi::CString;
 use std::mem;
 use std::ops::{Deref, DerefMut};
@@ -80,6 +82,7 @@ pub struct SsbEmulatorDesmume {
     debug_flag_temp_input: u32,
     debug_flags_1: [bool; NB_DEBUG_FLAGS_1],
     debug_flags_2: [bool; NB_DEBUG_FLAGS_2],
+    exec_ground_hooks: HashMap<u32, DebugRegisterExecGroundCallback>,
 }
 
 /// Mutable reference to the one global DeSmuME instance. Dropping this will drop the global
@@ -153,6 +156,7 @@ impl SsbEmulatorDesmumeGlobal {
                     debug_flag_temp_input: 0,
                     debug_flags_1: Default::default(),
                     debug_flags_2: Default::default(),
+                    exec_ground_hooks: Default::default(),
                 };
                 *global_self.get() = Some(slf);
                 SsbEmulatorDesmumeGlobal((*global_self.get()).as_mut().unwrap())
@@ -546,9 +550,18 @@ impl SsbEmulatorDesmume {
                 }
             }
 
-            DebugCommand::RegisterExecGround { addr: _, hook: _ } => {
-                todo!()
-            }
+            DebugCommand::RegisterExecGround { addr, hook } => match hook {
+                None => {
+                    self.exec_ground_hooks.remove(&addr);
+                    self.emu.memory_mut().register_exec(addr, None);
+                }
+                Some(hook) => {
+                    self.exec_ground_hooks.insert(addr, hook);
+                    self.emu
+                        .memory_mut()
+                        .register_exec(addr, Some(hook_exec_ground));
+                }
+            },
 
             DebugCommand::RegisterSsbLoad {
                 ssb_load_addrs,
@@ -615,10 +628,11 @@ impl SsbEmulatorDesmume {
                 );
             }
             DebugCommand::UnregisterUnionallLoadAddrChange => {
-                if let Some(unionall_load_addr_ptr) = self.hooks
-                    .unionall_load_addr_ptr { self.emu
-                            .memory_mut()
-                            .register_write(unionall_load_addr_ptr, 4, None) }
+                if let Some(unionall_load_addr_ptr) = self.hooks.unionall_load_addr_ptr {
+                    self.emu
+                        .memory_mut()
+                        .register_write(unionall_load_addr_ptr, 4, None)
+                }
             }
             DebugCommand::UnionallLoadAddressUpdate => update_unionall_load_address(self),
 
@@ -646,14 +660,55 @@ impl SsbEmulatorDesmume {
                     self.debug_flags_2[bit] = value;
                 }
             }
-            DebugCommand::SyncGlobalVars(_cb) => {
-                todo!()
+            DebugCommand::SyncGlobalVars(cb) => {
+                if let Some(vars) = self.vars.as_ref() {
+                    let mut values = HashMap::with_capacity(vars.defs.globals.len());
+                    for var in &vars.defs.globals {
+                        let mut var_values = Vec::with_capacity(var.data.nbvalues as usize);
+                        for offset in 0..(var.data.nbvalues) {
+                            let (_, val) = vars.read(&self.emu, var.id as u16, offset, None);
+                            var_values.push(val);
+                        }
+                        values.insert(var.id, var_values);
+                    }
+                    send_hook(HookExecute::SyncGlobalVars(cb, values));
+                }
             }
-            DebugCommand::SyncLocalVars(_addr_of_pnt_to_breaked_for_entity, _cb) => {
-                todo!()
+            DebugCommand::SyncLocalVars(addr_of_pnt_to_breaked_for_entity, cb) => {
+                let srs = ScriptRuntime::new(
+                    addr_of_pnt_to_breaked_for_entity,
+                    self.emu.memory().u8().index_move(
+                        addr_of_pnt_to_breaked_for_entity
+                            ..(addr_of_pnt_to_breaked_for_entity + ScriptRuntime::SIZE),
+                    ),
+                    UNIONALL_LOAD_ADDRESS.load(Ordering::Acquire),
+                );
+
+                if let Some(vars) = self.vars.as_ref() {
+                    let mut values = Vec::with_capacity(vars.defs.locals.len());
+                    for var in &vars.defs.locals {
+                        let (_, val) = vars.read(&self.emu, var.id as u16, 0, Some(&srs));
+                        values.push(val);
+                    }
+                    send_hook(HookExecute::SyncLocalVars(cb, values));
+                }
             }
-            DebugCommand::SyncMemTables(_cb) => {
-                todo!()
+            DebugCommand::SyncMemTables(address_table_head, cb) => {
+                let mut tables = vec![];
+
+                for x in 0..(self.emu.memory().u32().index_move(address_table_head)) {
+                    let address_table = address_table_head + 0x20 + 0x4 * x;
+                    tables.push(EmulatorMemTable::read(&self.emu, address_table));
+                }
+                send_hook(HookExecute::SyncMemTables(cb, tables));
+            }
+            DebugCommand::DumpMemTableEntry(cb, start, length) => {
+                send_hook(HookExecute::DumpMemTableEntry(
+                    cb,
+                    StBytes(Cow::Owned(
+                        self.emu.memory().u8().index_move(start..(start + length)),
+                    )),
+                ));
             }
         }
     }
@@ -1013,13 +1068,15 @@ extern "C" fn hook_write_unionall_load_addr_change(_addr: u32, _size: i32) -> i3
 }
 
 fn update_unionall_load_address(emu: &mut SsbEmulatorDesmume) {
-    UNIONALL_LOAD_ADDRESS.store(
-        emu.emu
-            .memory()
-            .u32()
-            .index_move(emu.hooks.unionall_load_addr_ptr.expect(ERR_EMU_INIT)),
-        Ordering::Release,
-    );
+    if overlay11_loaded(emu) {
+        UNIONALL_LOAD_ADDRESS.store(
+            emu.emu
+                .memory()
+                .u32()
+                .index_move(emu.hooks.unionall_load_addr_ptr.expect(ERR_EMU_INIT)),
+            Ordering::Release,
+        );
+    }
 }
 
 extern "C" fn hook_debug_print_printfs0(_addr: u32, _size: i32) -> i32 {
@@ -1113,7 +1170,7 @@ extern "C" fn script_hook_addr_script(_addr: u32, _size: i32) -> i32 {
         } else if current_op == 0x6C {
             // debug_PrintFlag
             let var_id = emu.emu.memory().u16().index_move(current_op_pnt + 2);
-            let (game_var_name, game_var_value) = emu.vars().read(&emu.emu, var_id, 0, &srs);
+            let (game_var_name, game_var_value) = emu.vars().read(&emu.emu, var_id, 0, Some(&srs));
             let const_string = read_ssb_str_mem(
                 emu,
                 ssb_str_table_pointer,
@@ -1133,8 +1190,8 @@ extern "C" fn script_hook_addr_script(_addr: u32, _size: i32) -> i32 {
         } else if current_op == 0x6D {
             // debug_PrintScenario
             let var_id = emu.emu.memory().u16().index_move(current_op_pnt + 2);
-            let (game_var_name, game_var_value) = emu.vars().read(&emu.emu, var_id, 0, &srs);
-            let (_, level_value) = emu.vars().read(&emu.emu, var_id, 1, &srs);
+            let (game_var_name, game_var_value) = emu.vars().read(&emu.emu, var_id, 0, Some(&srs));
+            let (_, level_value) = emu.vars().read(&emu.emu, var_id, 1, Some(&srs));
             let const_string = read_ssb_str_mem(
                 emu,
                 ssb_str_table_pointer,
@@ -1256,6 +1313,21 @@ extern "C" fn hook_debug_debug_mode(_addr: u32, _size: i32) -> i32 {
             emu.emu
                 .memory_mut()
                 .set_reg(Processor::Arm9, Register::R0, new_v);
+        }
+        1
+    })
+}
+
+extern "C" fn hook_exec_ground(addr: u32, _size: i32) -> i32 {
+    SELF.with(|emu_cell| {
+        let emu = unsafe { (*emu_cell.get()).as_mut().unwrap() };
+
+        if overlay11_loaded(emu) {
+            if let Some(cb) = emu.exec_ground_hooks.get(&addr) {
+                send_hook(HookExecute::ExecGround(cb.clone()));
+            } else {
+                panic!("Did not find registered ground callback: {addr}");
+            }
         }
         1
     })

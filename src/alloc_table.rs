@@ -17,8 +17,11 @@
  * along with SkyTemple.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use crate::stbytes::StBytes;
+use crate::pycallbacks::EmulatorMemTableEntryCallback;
+use crate::state::{command_channel_send, DebugCommand, EmulatorCommand};
 use pyo3::prelude::*;
+use rs_desmume::mem::IndexMove;
+use rs_desmume::DeSmuME;
 
 #[pyclass(module = "ssb_emulator")]
 #[repr(u32)]
@@ -62,7 +65,7 @@ pub struct EmulatorMemTableEntry {
     #[pyo3(get)]
     pub unk2: u32,
     #[pyo3(get)]
-    pub start_addres: u32,
+    pub start_address: u32,
     #[pyo3(get)]
     pub available: u32,
     #[pyo3(get)]
@@ -71,9 +74,13 @@ pub struct EmulatorMemTableEntry {
 
 #[pymethods]
 impl EmulatorMemTableEntry {
-    /// Returns the bytes of the entry.
-    pub fn dump(&self) -> StBytes {
-        todo!()
+    /// Passes the bytes of the entry to the callback when ready and emulator_poll is called.
+    pub fn dump(&self, cb: PyObject) {
+        command_channel_send(EmulatorCommand::Debug(DebugCommand::DumpMemTableEntry(
+            EmulatorMemTableEntryCallback(cb),
+            self.start_address,
+            self.available,
+        )));
     }
 }
 
@@ -95,4 +102,50 @@ pub struct EmulatorMemTable {
     pub addr_data: u32,
     #[pyo3(get)]
     pub len_data: u32,
+}
+
+impl EmulatorMemTable {
+    pub fn read(emu: &DeSmuME, addr_ptr: u32) -> Self {
+        let start_address = emu.memory().u32().index_move(addr_ptr);
+        let parent_table = emu.memory().u32().index_move(start_address + 0x4);
+        let addr_table = emu.memory().u32().index_move(start_address + 0x8);
+        let entries = emu.memory().u32().index_move(start_address + 0xc);
+        let max_entries = emu.memory().u32().index_move(start_address + 0x10);
+        let addr_data = emu.memory().u32().index_move(start_address + 0x14);
+        let len_data = emu.memory().u32().index_move(start_address + 0x18);
+        let mut blocks = Vec::with_capacity(entries as usize);
+        for x in 0..entries {
+            let entry_start = addr_table + 0x18 * x;
+            let type_alloc = match emu.memory().u32().index_move(entry_start) {
+                0 => EmulatorMemAllocType::Free,
+                1 => EmulatorMemAllocType::Static,
+                2 => EmulatorMemAllocType::Block,
+                3 => EmulatorMemAllocType::Temporary,
+                4 => EmulatorMemAllocType::SubTable,
+                _ => EmulatorMemAllocType::SubTable,
+            };
+            let unk1 = emu.memory().u32().index_move(entry_start + 0x4);
+            let unk2 = emu.memory().u32().index_move(entry_start + 0x8);
+            let start_address = emu.memory().u32().index_move(entry_start + 0xc);
+            let available = emu.memory().u32().index_move(entry_start + 0x10);
+            let used = emu.memory().u32().index_move(entry_start + 0x14);
+            blocks.push(EmulatorMemTableEntry {
+                type_alloc,
+                unk1,
+                unk2,
+                start_address,
+                available,
+                used,
+            })
+        }
+        Self {
+            entries: blocks,
+            start_address,
+            parent_table,
+            addr_table,
+            max_entries,
+            addr_data,
+            len_data,
+        }
+    }
 }

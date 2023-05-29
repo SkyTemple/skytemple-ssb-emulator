@@ -30,14 +30,15 @@ use crate::pycallbacks::{
     DebugRegisterExecGroundCallback, DebugRegisterScriptDebugCallback,
     DebugRegisterScriptVariableSetCallback, DebugRegisterSsbLoadCallback,
     DebugRegisterSsxLoadCallback, DebugRegisterTalkLoadCallback, DebugSyncGlobalVarsCallback,
-    DebugSyncLocalVarsCallback, DebugSyncMemTablesCallback, JoyGetNumberConnectedCallback,
-    ReadMemCallback,
+    DebugSyncLocalVarsCallback, DebugSyncMemTablesCallback, EmulatorMemTableEntryCallback,
+    JoyGetNumberConnectedCallback, ReadMemCallback,
 };
 use crate::stbytes::StBytes;
 use crossbeam_channel::{bounded, unbounded, Receiver, Sender};
 use lazy_static::lazy_static;
 use log::warn;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::ops::Range;
 use std::panic::{catch_unwind, panic_any, AssertUnwindSafe, UnwindSafe};
 use std::rc::Rc;
@@ -46,6 +47,7 @@ use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
 use std::thread::{sleep, JoinHandle};
 use std::time::{Duration, Instant};
+use crate::alloc_table::EmulatorMemTable;
 
 pub static ERR_EMU_INIT: &str = "Emulator was not properly initialized.";
 
@@ -173,7 +175,8 @@ pub enum DebugCommand {
     SetDebugFlag2(usize, bool),
     SyncGlobalVars(DebugSyncGlobalVarsCallback),
     SyncLocalVars(u32, DebugSyncLocalVarsCallback),
-    SyncMemTables(DebugSyncMemTablesCallback),
+    SyncMemTables(u32, DebugSyncMemTablesCallback),
+    DumpMemTableEntry(EmulatorMemTableEntryCallback, u32, u32),
 }
 
 #[derive(Debug)]
@@ -222,6 +225,11 @@ pub enum HookExecute {
     DebugTalkLoad(DebugRegisterTalkLoadCallback, u32),
     DebugPrint(DebugRegisterDebugPrintCallback, EmulatorLogType, String),
     DebugSetFlag(DebugRegisterDebugFlagCallback, u32, u32, u32),
+    ExecGround(DebugRegisterExecGroundCallback),
+    SyncGlobalVars(DebugSyncGlobalVarsCallback, HashMap<usize, Vec<i32>>),
+    SyncLocalVars(DebugSyncLocalVarsCallback, Vec<i32>),
+    SyncMemTables(DebugSyncMemTablesCallback, Vec<EmulatorMemTable>),
+    DumpMemTableEntry(EmulatorMemTableEntryCallback, StBytes<'static>),
 }
 
 struct EmulatorThreadStateCreate<E>

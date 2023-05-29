@@ -78,6 +78,21 @@ pub fn emulator_poll(py: Python, error_consumer: PyObject) -> PyResult<()> {
                 HookExecute::DebugSetFlag(cb, var_id, flag_id, value) => {
                     cb.0.call(py, (var_id, flag_id, value), None)?;
                 }
+                HookExecute::ExecGround(cb) => {
+                    cb.0.call0(py)?;
+                }
+                HookExecute::SyncGlobalVars(cb, values) => {
+                    cb.0.call(py, (values,), None)?;
+                }
+                HookExecute::SyncLocalVars(cb, values) => {
+                    cb.0.call(py, (values,), None)?;
+                }
+                HookExecute::SyncMemTables(cb, values) => {
+                    cb.0.call(py, (values,), None)?;
+                }
+                HookExecute::DumpMemTableEntry(cb, by) => {
+                    cb.0.call(py, (by,), None)?;
+                }
             }
         }
         Ok(())

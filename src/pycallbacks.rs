@@ -78,3 +78,7 @@ pub struct BreakpointChangeCallback(pub PyObject);
 #[derive(Debug, Clone)]
 /// Python callable with signature def _(state: BreakpointState).
 pub struct BreakpointStateReleaseCallback(pub PyObject);
+
+#[derive(Debug, Clone)]
+/// Python callable with signature def _(content: bytes).
+pub struct EmulatorMemTableEntryCallback(pub PyObject);

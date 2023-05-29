@@ -190,40 +190,6 @@ pub fn emulator_register_debug_flag(
         hook: DebugRegisterDebugFlagCallback(hook),
     }));
     Ok(())
-    //     TODO
-    //         self.register_exec(arm9.functions.GetDebugFlag1.absolute_address, self.hook__get_debug_flag_get_input)
-    //         self.register_exec(arm9.functions.GetDebugFlag2.absolute_address, self.hook__get_debug_flag_get_input)
-    //         self.register_exec(arm9.functions.GetDebugFlag1.absolute_address+0x4, self.hook__get_debug_flag_1)
-    //         self.register_exec(arm9.functions.GetDebugFlag2.absolute_address+0x4, self.hook__get_debug_flag_2)
-    //         self.register_exec(arm9.functions.SetDebugFlag1.absolute_address, self.hook__set_debug_flag_1)
-    //         self.register_exec(arm9.functions.SetDebugFlag2.absolute_address, self.hook__set_debug_flag_2)
-    //
-    //
-    //
-    //     @synchronized(debugger_state_lock)
-    //     def hook__get_debug_flag_get_input(self, address, size):
-    //         self._debug_flag_temp_input = self.emu_thread.emu.memory.register_arm9.r0
-    //
-    //     @synchronized(debugger_state_lock)
-    //     def hook__get_debug_flag_1(self, address, size):
-    //         self.emu_thread.emu.memory.register_arm9.r0 = self._debug_flags_1[self._debug_flag_temp_input]
-    //
-    //     @synchronized(debugger_state_lock)
-    //     def hook__get_debug_flag_2(self, address, size):
-    //         self.emu_thread.emu.memory.register_arm9.r0 = self._debug_flags_2[self._debug_flag_temp_input]
-    //
-    //     @synchronized(debugger_state_lock)
-    //     def hook__set_debug_flag_1(self, address, size):
-    //         flag_id = self.emu_thread.emu.memory.register_arm9.r0
-    //         value = self.emu_thread.emu.memory.register_arm9.r1
-    //         threadsafe_gtk_nonblocking(lambda: self.parent.set_check_debug_flag_1(flag_id, value))
-    //
-    //     @synchronized(debugger_state_lock)
-    //     def hook__set_debug_flag_2(self, address, size):
-    //         flag_id = self.emu_thread.emu.memory.register_arm9.r0
-    //         value = self.emu_thread.emu.memory.register_arm9.r1
-    //         threadsafe_gtk_nonblocking(lambda: self.parent.set_check_debug_flag_2(flag_id, value))
-    //     """
 }
 
 #[pyfunction]
@@ -402,8 +368,9 @@ pub fn emulator_sync_local_vars(addr_of_pnt_to_breaked_for_entity: u32, cb: PyOb
 #[pyfunction]
 /// Synchronize and retrieve and return the memory allocation tables and pass
 /// them to the callback when ready and [`emulator_poll`] is called.
-pub fn emulator_sync_tables(cb: PyObject) {
+pub fn emulator_sync_tables(addr_mem_alloc_table: u32, cb: PyObject) {
     command_channel_send(EmulatorCommand::Debug(DebugCommand::SyncMemTables(
+        addr_mem_alloc_table,
         DebugSyncMemTablesCallback(cb),
     )));
 }

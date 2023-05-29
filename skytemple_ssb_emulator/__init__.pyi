@@ -37,8 +37,8 @@ class EmulatorMemTableEntry:
     available: int
     used: int
 
-    def dump(self) -> bytes:
-        """Returns the bytes of the entry."""
+    def dump(self, cb: Callable[[bytes], None]):
+        """Passes the bytes of the entry to the callback when ready and emulator_poll is called."""
 
 
 class EmulatorMemTable:
@@ -247,7 +247,7 @@ def emulator_unregister_script_variable_set():
     ...
 
 
-def emulator_sync_tables(cb: Callable[[Sequence[EmulatorMemTable]], None]):
+def emulator_sync_tables(addr_mem_alloc_table: u32, cb: Callable[[Sequence[EmulatorMemTable]], None]):
     """
     Synchronize and retrieve and return the memory allocation tables and pass
     them to the callback when ready and [`emulator_poll`] is called.
