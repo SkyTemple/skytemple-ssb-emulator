@@ -238,7 +238,7 @@ impl GameVariableManipulator {
             ScriptVariableType::U32 => emu
                 .memory_mut()
                 .u32()
-                .index_set(value_ptr + (read_offset as u32 * 4), &(value as u32)),
+                .index_set(value_ptr + (read_offset as u32 * 4), &{ value }),
             ScriptVariableType::I32 => emu
                 .memory_mut()
                 .i32()

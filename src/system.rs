@@ -23,8 +23,8 @@ use crate::state::{
     EMULATOR_IS_RUNNING, EMULATOR_THREAD, TICK_COUNT,
 };
 use log::warn;
-use pyo3::types::PySequence;
-use pyo3::{pyfunction, PyResult};
+
+use pyo3::{pyfunction};
 use std::ops::DerefMut;
 use std::sync::atomic::Ordering;
 

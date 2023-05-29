@@ -546,9 +546,9 @@ impl BreakpointManager {
         fs::write(
             &self.breakpoints_json_path,
             serde_json::to_string(&mapping_to_write_to_file)
-                .map_err(|v| PyIOError::new_err("Failed to write to breakpoints file."))?,
+                .map_err(|_v| PyIOError::new_err("Failed to write to breakpoints file."))?,
         )
-        .map_err(|v| PyIOError::new_err("Failed to write to breakpoints file."))?;
+        .map_err(|_v| PyIOError::new_err("Failed to write to breakpoints file."))?;
 
         Ok(())
     }
@@ -662,9 +662,9 @@ impl BreakpointManager {
         fs::write(
             &self.breakpoints_json_path,
             serde_json::to_string(&self.breakpoint_mapping)
-                .map_err(|v| PyIOError::new_err("Failed to write to breakpoints file."))?,
+                .map_err(|_v| PyIOError::new_err("Failed to write to breakpoints file."))?,
         )
-        .map_err(|v| PyIOError::new_err("Failed to write to breakpoints file."))
+        .map_err(|_v| PyIOError::new_err("Failed to write to breakpoints file."))
     }
 }
 

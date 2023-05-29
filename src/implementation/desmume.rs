@@ -546,7 +546,7 @@ impl SsbEmulatorDesmume {
                 }
             }
 
-            DebugCommand::RegisterExecGround { addr, hook } => {
+            DebugCommand::RegisterExecGround { addr: _, hook: _ } => {
                 todo!()
             }
 
@@ -615,13 +615,10 @@ impl SsbEmulatorDesmume {
                 );
             }
             DebugCommand::UnregisterUnionallLoadAddrChange => {
-                self.hooks
-                    .unionall_load_addr_ptr
-                    .map(|unionall_load_addr_ptr| {
-                        self.emu
+                if let Some(unionall_load_addr_ptr) = self.hooks
+                    .unionall_load_addr_ptr { self.emu
                             .memory_mut()
-                            .register_write(unionall_load_addr_ptr, 4, None)
-                    });
+                            .register_write(unionall_load_addr_ptr, 4, None) }
             }
             DebugCommand::UnionallLoadAddressUpdate => update_unionall_load_address(self),
 
@@ -649,13 +646,13 @@ impl SsbEmulatorDesmume {
                     self.debug_flags_2[bit] = value;
                 }
             }
-            DebugCommand::SyncGlobalVars(cb) => {
+            DebugCommand::SyncGlobalVars(_cb) => {
                 todo!()
             }
-            DebugCommand::SyncLocalVars(addr_of_pnt_to_breaked_for_entity, cb) => {
+            DebugCommand::SyncLocalVars(_addr_of_pnt_to_breaked_for_entity, _cb) => {
                 todo!()
             }
-            DebugCommand::SyncMemTables(cb) => {
+            DebugCommand::SyncMemTables(_cb) => {
                 todo!()
             }
         }
