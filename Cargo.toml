@@ -1,6 +1,6 @@
 [package]
 name = "skytemple_ssb_emulator"
-version = "1.4.0"
+version = "1.6.0"
 authors = ["Marco 'Capypara' Köpcke <hello@capypara.de>"]
 edition = "2021"
 repository = "https://github.com/SkyTemple/skytemple-ssb-emulator"
@@ -11,7 +11,10 @@ crate-type = ["cdylib"]
 name = "skytemple_ssb_emulator"
 
 [dependencies]
+# TODO: Stable
 rs_desmume = { path = "/home/marco/dev/skytemple/skytemple/rs-desmume" }
+# TODO: Stable
+skytemple_rust = { path = "/home/marco/dev/skytemple/skytemple/skytemple_rust", default-features = false, features = ["script_var_table"] }
 pyo3 = { version = "0.18", features = ["extension-module"] }
 pyo3-log = "0.8"
 log = "0.4"
@@ -19,3 +22,4 @@ crossbeam-channel = "0.5"
 lazy_static = "1.4"
 serde_json = "1"
 byteorder = "1.4"
+sprintf = "0.1"

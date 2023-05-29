@@ -365,7 +365,7 @@ pub fn emulator_set_debug_mode(value: bool) {
 #[pyfunction]
 /// Queues writing a bit of debug flag 1.
 /// This is done at latest the next time the emulator's memory is ready to be written to.
-pub fn emulator_set_debug_flag_1(bit: i32, value: bool) {
+pub fn emulator_set_debug_flag_1(bit: usize, value: bool) {
     command_channel_send(EmulatorCommand::Debug(DebugCommand::SetDebugFlag1(
         bit, value,
     )));
@@ -374,7 +374,7 @@ pub fn emulator_set_debug_flag_1(bit: i32, value: bool) {
 #[pyfunction]
 /// Queues writing a bit of debug flag 2.
 /// This is done at latest the next time the emulator's memory is ready to be written to.
-pub fn emulator_set_debug_flag_2(bit: i32, value: bool) {
+pub fn emulator_set_debug_flag_2(bit: usize, value: bool) {
     command_channel_send(EmulatorCommand::Debug(DebugCommand::SetDebugFlag2(
         bit, value,
     )));

@@ -72,6 +72,12 @@ pub fn emulator_poll(py: Python, error_consumer: PyObject) -> PyResult<()> {
                 HookExecute::DebugTalkLoad(cb, hanger) => {
                     cb.0.call(py, (hanger,), None)?;
                 }
+                HookExecute::DebugPrint(cb, ty, msg) => {
+                    cb.0.call(py, (ty, msg), None)?;
+                }
+                HookExecute::DebugSetFlag(cb, var_id, flag_id, value) => {
+                    cb.0.call(py, (var_id, flag_id, value), None)?;
+                }
             }
         }
         Ok(())

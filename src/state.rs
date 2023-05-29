@@ -19,8 +19,9 @@
 
 use crate::display_buffer::DisplayBuffer;
 use crate::eos_debug::{
-    BreakpointManager, BreakpointResumeInfo, BreakpointState, BreakpointStateType,
+    BreakpointManager, BreakpointResumeInfo, BreakpointState, BreakpointStateType, EmulatorLogType,
 };
+use crate::game_variable::GameVariablesValueAddresses;
 use crate::implementation::desmume::SsbEmulatorDesmumeGlobal;
 use crate::implementation::{SsbEmulator, SsbEmulatorCommandResult};
 use crate::language::Language;
@@ -168,8 +169,8 @@ pub enum DebugCommand {
         value: u32,
     },
     SetDebugMode(bool),
-    SetDebugFlag1(i32, bool),
-    SetDebugFlag2(i32, bool),
+    SetDebugFlag1(usize, bool),
+    SetDebugFlag2(usize, bool),
     SyncGlobalVars(DebugSyncGlobalVarsCallback),
     SyncLocalVars(u32, DebugSyncLocalVarsCallback),
     SyncMemTables(DebugSyncMemTablesCallback),
@@ -182,7 +183,7 @@ pub enum EmulatorCommand {
     Pause,
     Resume,
     Shutdown,
-    OpenRom(String, u32),
+    OpenRom(String, u32, (u32, u32), GameVariablesValueAddresses),
     VolumeSet(u8),
     SavestateSaveFile(String),
     SavestateLoadFile(String),
@@ -219,6 +220,8 @@ pub enum HookExecute {
     DebugSsbLoad(DebugRegisterSsbLoadCallback, String),
     DebugSsxLoad(DebugRegisterSsxLoadCallback, u32, String),
     DebugTalkLoad(DebugRegisterTalkLoadCallback, u32),
+    DebugPrint(DebugRegisterDebugPrintCallback, EmulatorLogType, String),
+    DebugSetFlag(DebugRegisterDebugFlagCallback, u32, u32, u32),
 }
 
 struct EmulatorThreadStateCreate<E>

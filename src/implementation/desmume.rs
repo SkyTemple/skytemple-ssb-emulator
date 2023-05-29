@@ -18,10 +18,12 @@
  */
 
 use crate::eos_debug::{
-    emulator_unionall_load_address, BreakpointInfo, BreakpointState, BreakpointStateType, MAX_SSB,
-    MAX_SSX, TALK_HANGER_OFFSET,
+    BreakpointInfo, BreakpointState, BreakpointStateType, EmulatorLogType, MAX_SSB, MAX_SSX,
+    TALK_HANGER_OFFSET,
 };
+use crate::game_variable::GameVariableManipulator;
 use crate::implementation::{SsbEmulator, SsbEmulatorCommandResult};
+use crate::printf::PrintfArg;
 use crate::pycallbacks::*;
 use crate::script_runtime::ScriptRuntime;
 use crate::state::{
@@ -34,14 +36,21 @@ use crossbeam_channel::{Receiver, Sender};
 use log::warn;
 use rs_desmume::mem::{IndexMove, Processor, Register};
 use rs_desmume::DeSmuME;
+use skytemple_rust::st_script_var_table::{
+    ScriptVariableTables, COUNT_GLOBAL_VARS, COUNT_LOCAL_VARS, DEFINITION_STRUCT_SIZE,
+};
+use sprintf::{vsprintf, Printf};
 use std::borrow::Cow;
 use std::cell::{RefCell, UnsafeCell};
-use std::ffi::CStr;
+use std::ffi::CString;
 use std::mem;
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
+
+const NB_DEBUG_FLAGS_1: usize = 0xC;
+const NB_DEBUG_FLAGS_2: usize = 0x10;
 
 #[derive(Default)]
 struct HookStorage {
@@ -59,12 +68,18 @@ struct HookStorage {
     ssb_load_addrs: Vec<u32>,
     ssx_load_addrs: Vec<u32>,
     talk_load_addrs: Vec<u32>,
+    unionall_load_addr_ptr: Option<u32>,
 }
 
 pub struct SsbEmulatorDesmume {
     emu: DeSmuME,
     hooks: HookStorage,
     address_loaded_overlay_group_1: u32,
+    vars: Option<GameVariableManipulator>,
+    debug_mode: bool,
+    debug_flag_temp_input: u32,
+    debug_flags_1: [bool; NB_DEBUG_FLAGS_1],
+    debug_flags_2: [bool; NB_DEBUG_FLAGS_2],
 }
 
 /// Mutable reference to the one global DeSmuME instance. Dropping this will drop the global
@@ -104,10 +119,11 @@ thread_local! {
     static HOOK_SENDER: RefCell<Option<Rc<Sender<HookExecute>>>> = RefCell::new(None);
     static HOOK_CB_SCRIPT_VARIABLE_SET: RefCell<Option<DebugRegisterScriptVariableSetCallback>> = RefCell::new(None);
     static HOOK_CB_SCRIPT_DEBUG: RefCell<Option<DebugRegisterScriptDebugCallback>> = RefCell::new(None);
-
     static HOOK_CB_SSB_LOAD: RefCell<Option<DebugRegisterSsbLoadCallback>> = RefCell::new(None);
     static HOOK_CB_SSX_LOAD: RefCell<Option<DebugRegisterSsxLoadCallback>> = RefCell::new(None);
     static HOOK_CB_TALK_LOAD: RefCell<Option<DebugRegisterTalkLoadCallback>> = RefCell::new(None);
+    static HOOK_CB_SET_DEBUG_FLAG: RefCell<Option<DebugRegisterDebugFlagCallback>> = RefCell::new(None);
+    static HOOK_CB_DEBUG_PRINT: RefCell<Option<DebugRegisterDebugPrintCallback>> = RefCell::new(None);
 }
 
 impl SsbEmulatorDesmumeGlobal {
@@ -132,6 +148,11 @@ impl SsbEmulatorDesmumeGlobal {
                     },
                     hooks: Default::default(),
                     address_loaded_overlay_group_1: 0,
+                    vars: None,
+                    debug_mode: false,
+                    debug_flag_temp_input: 0,
+                    debug_flags_1: Default::default(),
+                    debug_flags_2: Default::default(),
                 };
                 *global_self.get() = Some(slf);
                 SsbEmulatorDesmumeGlobal((*global_self.get()).as_mut().unwrap())
@@ -237,7 +258,12 @@ impl SsbEmulatorDesmume {
                 EMULATOR_IS_RUNNING.store(false, Ordering::Release);
                 return true;
             }
-            EmulatorCommand::OpenRom(filename, address_loaded_overlay_group_1) => {
+            EmulatorCommand::OpenRom(
+                filename,
+                address_loaded_overlay_group_1,
+                (local_addr, global_addr),
+                value_addrs,
+            ) => {
                 self.emu
                     .open(&filename, false)
                     .map_err(|err| {
@@ -247,6 +273,29 @@ impl SsbEmulatorDesmume {
                     })
                     .ok();
                 self.address_loaded_overlay_group_1 = address_loaded_overlay_group_1;
+                self.vars = Some(GameVariableManipulator::new(
+                    ScriptVariableTables::new_with_name_reader(
+                        self.emu
+                            .memory()
+                            .u8()
+                            .index_move(
+                                global_addr
+                                    ..(global_addr + (COUNT_GLOBAL_VARS * DEFINITION_STRUCT_SIZE)),
+                            )
+                            .into(),
+                        self.emu
+                            .memory()
+                            .u8()
+                            .index_move(
+                                local_addr
+                                    ..(local_addr + (COUNT_LOCAL_VARS * DEFINITION_STRUCT_SIZE)),
+                            )
+                            .into(),
+                        &|addr| Ok(self.emu.memory().read_cstring(addr)),
+                    )
+                    .expect("Failed reading variables. Bailing!"),
+                    value_addrs,
+                ));
             }
             EmulatorCommand::VolumeSet(volume) => self.emu.volume_set(volume),
             EmulatorCommand::SavestateSaveFile(filename) => {
@@ -383,10 +432,42 @@ impl SsbEmulatorDesmume {
                 script_hook_addr,
                 hook,
             } => {
-                todo!()
+                self.hooks
+                    .printf_r0_functions_addr
+                    .extend_from_slice(&printf_r0_functions_addr);
+                self.hooks
+                    .printf_r1_functions_addr
+                    .extend_from_slice(&printf_r1_functions_addr);
+                self.hooks
+                    .script_hook_addr
+                    .extend_from_slice(&script_hook_addr);
+                HOOK_CB_DEBUG_PRINT.with(|hook_cb| hook_cb.borrow_mut().replace(hook));
+                for addr in printf_r0_functions_addr {
+                    self.emu
+                        .memory_mut()
+                        .register_exec(addr, Some(hook_debug_print_printfs0));
+                }
+                for addr in printf_r1_functions_addr {
+                    self.emu
+                        .memory_mut()
+                        .register_exec(addr, Some(hook_debug_print_printfs1));
+                }
+                for addr in script_hook_addr {
+                    self.emu
+                        .memory_mut()
+                        .register_exec(addr, Some(script_hook_addr_script));
+                }
             }
             DebugCommand::UnregisterDebugPrint => {
-                todo!()
+                for addr in mem::take(&mut self.hooks.printf_r0_functions_addr) {
+                    self.emu.memory_mut().register_exec(addr, None);
+                }
+                for addr in mem::take(&mut self.hooks.printf_r1_functions_addr) {
+                    self.emu.memory_mut().register_exec(addr, None);
+                }
+                for addr in mem::take(&mut self.hooks.script_hook_addr) {
+                    self.emu.memory_mut().register_exec(addr, None);
+                }
             }
 
             DebugCommand::RegisterDebugFlag {
@@ -397,10 +478,72 @@ impl SsbEmulatorDesmume {
                 script_get_debug_mode_addr,
                 hook,
             } => {
-                todo!()
+                self.hooks
+                    .get_debug_flag_1_addr
+                    .extend_from_slice(&get_debug_flag_1_addr);
+                self.hooks
+                    .get_debug_flag_2_addr
+                    .extend_from_slice(&get_debug_flag_2_addr);
+                self.hooks
+                    .set_debug_flag_1_addr
+                    .extend_from_slice(&set_debug_flag_1_addr);
+                self.hooks
+                    .set_debug_flag_2_addr
+                    .extend_from_slice(&set_debug_flag_2_addr);
+                self.hooks
+                    .script_get_debug_mode_addr
+                    .extend_from_slice(&script_get_debug_mode_addr);
+                HOOK_CB_SET_DEBUG_FLAG.with(|hook_cb| hook_cb.borrow_mut().replace(hook));
+                for addr in get_debug_flag_1_addr {
+                    self.emu
+                        .memory_mut()
+                        .register_exec(addr, Some(hook_debug_get_debug_flag_get_input));
+                    self.emu
+                        .memory_mut()
+                        .register_exec(addr + 4, Some(hook_debug_get_debug_flag_1));
+                }
+                for addr in get_debug_flag_2_addr {
+                    self.emu
+                        .memory_mut()
+                        .register_exec(addr, Some(hook_debug_get_debug_flag_get_input));
+                    self.emu
+                        .memory_mut()
+                        .register_exec(addr + 4, Some(hook_debug_get_debug_flag_2));
+                }
+                for addr in set_debug_flag_1_addr {
+                    self.emu
+                        .memory_mut()
+                        .register_exec(addr, Some(hook_debug_set_debug_flag_1));
+                }
+                for addr in set_debug_flag_2_addr {
+                    self.emu
+                        .memory_mut()
+                        .register_exec(addr, Some(hook_debug_set_debug_flag_2));
+                }
+                for addr in script_get_debug_mode_addr {
+                    self.emu
+                        .memory_mut()
+                        .register_exec(addr, Some(hook_debug_debug_mode));
+                }
             }
             DebugCommand::UnregisterDebugFlag => {
-                todo!()
+                for addr in mem::take(&mut self.hooks.get_debug_flag_1_addr) {
+                    self.emu.memory_mut().register_exec(addr, None);
+                    self.emu.memory_mut().register_exec(addr + 4, None);
+                }
+                for addr in mem::take(&mut self.hooks.get_debug_flag_2_addr) {
+                    self.emu.memory_mut().register_exec(addr, None);
+                    self.emu.memory_mut().register_exec(addr + 4, None);
+                }
+                for addr in mem::take(&mut self.hooks.set_debug_flag_1_addr) {
+                    self.emu.memory_mut().register_exec(addr, None);
+                }
+                for addr in mem::take(&mut self.hooks.set_debug_flag_2_addr) {
+                    self.emu.memory_mut().register_exec(addr, None);
+                }
+                for addr in mem::take(&mut self.hooks.script_get_debug_mode_addr) {
+                    self.emu.memory_mut().register_exec(addr, None);
+                }
             }
 
             DebugCommand::RegisterExecGround { addr, hook } => {
@@ -464,30 +607,47 @@ impl SsbEmulatorDesmume {
             }
 
             DebugCommand::RegisterUnionallLoadAddrChange(pnt) => {
-                todo!()
+                self.hooks.unionall_load_addr_ptr = Some(pnt);
+                self.emu.memory_mut().register_write(
+                    pnt,
+                    4,
+                    Some(hook_write_unionall_load_addr_change),
+                );
             }
             DebugCommand::UnregisterUnionallLoadAddrChange => {
-                todo!()
+                self.hooks
+                    .unionall_load_addr_ptr
+                    .map(|unionall_load_addr_ptr| {
+                        self.emu
+                            .memory_mut()
+                            .register_write(unionall_load_addr_ptr, 4, None)
+                    });
             }
-            DebugCommand::UnionallLoadAddressUpdate => {
-                todo!()
-            }
+            DebugCommand::UnionallLoadAddressUpdate => update_unionall_load_address(self),
 
             DebugCommand::WriteGameVariable {
                 var_id,
                 var_offset,
                 value,
-            } => {
-                todo!()
-            }
+            } => self.vars.as_ref().expect(ERR_EMU_INIT).write(
+                &mut self.emu,
+                var_id as u16,
+                var_offset as u16,
+                value,
+                None,
+            ),
             DebugCommand::SetDebugMode(value) => {
-                todo!()
+                self.debug_mode = value;
             }
             DebugCommand::SetDebugFlag1(bit, value) => {
-                todo!()
+                if bit < NB_DEBUG_FLAGS_1 {
+                    self.debug_flags_1[bit] = value;
+                }
             }
             DebugCommand::SetDebugFlag2(bit, value) => {
-                todo!()
+                if bit < NB_DEBUG_FLAGS_2 {
+                    self.debug_flags_2[bit] = value;
+                }
             }
             DebugCommand::SyncGlobalVars(cb) => {
                 todo!()
@@ -499,6 +659,10 @@ impl SsbEmulatorDesmume {
                 todo!()
             }
         }
+    }
+
+    fn vars(&self) -> &GameVariableManipulator {
+        self.vars.as_ref().unwrap()
     }
 }
 
@@ -577,6 +741,7 @@ extern "C" fn hook_script_debug(_addr: u32, _size: i32) -> i32 {
 
         let start_script_struct = emu.emu.memory().get_reg(Processor::Arm9, Register::R6);
         let srs = ScriptRuntime::new(
+            start_script_struct,
             emu.emu
                 .memory()
                 .u8()
@@ -842,13 +1007,281 @@ extern "C" fn hook_talk_load(_addr: u32, _size: i32) -> i32 {
     })
 }
 
+extern "C" fn hook_write_unionall_load_addr_change(_addr: u32, _size: i32) -> i32 {
+    SELF.with(|emu_cell| {
+        let emu = unsafe { (*emu_cell.get()).as_mut().unwrap() };
+        update_unionall_load_address(emu);
+    });
+    1
+}
+
+fn update_unionall_load_address(emu: &mut SsbEmulatorDesmume) {
+    UNIONALL_LOAD_ADDRESS.store(
+        emu.emu
+            .memory()
+            .u32()
+            .index_move(emu.hooks.unionall_load_addr_ptr.expect(ERR_EMU_INIT)),
+        Ordering::Release,
+    );
+}
+
+extern "C" fn hook_debug_print_printfs0(_addr: u32, _size: i32) -> i32 {
+    _hook_debug_print_printfs(0)
+}
+
+extern "C" fn hook_debug_print_printfs1(_addr: u32, _size: i32) -> i32 {
+    _hook_debug_print_printfs(1)
+}
+
+fn _hook_debug_print_printfs(register_offset: u32) -> i32 {
+    SELF.with(|emu_cell| {
+        let emu = unsafe { (*emu_cell.get()).as_mut().unwrap() };
+
+        if BOOST_MODE.load(Ordering::Relaxed) {
+            return 1;
+        };
+
+        let ptr = emu.emu.memory().get_reg(
+            Processor::Arm9,
+            Register::try_from(register_offset).unwrap(),
+        );
+        let dbg_cstring = emu.emu.memory().read_cstring(ptr);
+        let dbg_string = dbg_cstring.to_string_lossy();
+
+        let args_count = dbg_string.chars().filter(|c| *c == '%').count() as u32;
+        let args = (0..args_count)
+            .map(|i| {
+                PrintfArg(
+                    &emu.emu,
+                    emu.emu.memory().get_reg(
+                        Processor::Arm9,
+                        Register::try_from(register_offset + i + 1).unwrap_or(Register::R15),
+                    ),
+                )
+            })
+            .collect::<Vec<_>>();
+        let args_dyn = args
+            .iter()
+            .map(|v| v as &dyn Printf)
+            .collect::<Vec<&dyn Printf>>();
+        let formatted = vsprintf(dbg_string.as_ref(), &args_dyn).unwrap_or_else(|err| {
+            format!(
+                "[SkyTemple] Format failed: Format string was: '{dbg_string}' - Error: '{err:?}'"
+            )
+        });
+
+        take_pycallback_and_send_hook!(
+            HOOK_CB_DEBUG_PRINT,
+            cb,
+            HookExecute::DebugPrint(cb, EmulatorLogType::Printfs, formatted)
+        );
+
+        1
+    })
+}
+
+extern "C" fn script_hook_addr_script(_addr: u32, _size: i32) -> i32 {
+    SELF.with(|emu_cell| {
+        let emu = unsafe { (*emu_cell.get()).as_mut().unwrap() };
+
+        if BOOST_MODE.load(Ordering::Relaxed) {
+            return 1;
+        };
+
+        let start_script_struct = emu.emu.memory().get_reg(Processor::Arm9, Register::R4);
+        let srs = ScriptRuntime::new(
+            start_script_struct,
+            emu.emu
+                .memory()
+                .u8()
+                .index_move(start_script_struct..(start_script_struct + ScriptRuntime::SIZE)),
+            UNIONALL_LOAD_ADDRESS.load(Ordering::Acquire),
+        );
+        let ssb_str_table_pointer = srs.start_addr_str_table;
+        let current_op_pnt = emu.emu.memory().get_reg(Processor::Arm9, Register::R5);
+        let current_op = emu.emu.memory().get_reg(Processor::Arm9, Register::R6);
+        if current_op == 0x6B {
+            // debug_Print
+            let const_string = read_ssb_str_mem(
+                emu,
+                ssb_str_table_pointer,
+                emu.emu.memory().u16().index_move(current_op_pnt + 2) as u32,
+            );
+            let string = format!("debug_Print: {}", const_string.to_string_lossy());
+            take_pycallback_and_send_hook!(
+                HOOK_CB_DEBUG_PRINT,
+                cb,
+                HookExecute::DebugPrint(cb, EmulatorLogType::DebugPrint, string)
+            );
+        } else if current_op == 0x6C {
+            // debug_PrintFlag
+            let var_id = emu.emu.memory().u16().index_move(current_op_pnt + 2);
+            let (game_var_name, game_var_value) = emu.vars().read(&emu.emu, var_id, 0, &srs);
+            let const_string = read_ssb_str_mem(
+                emu,
+                ssb_str_table_pointer,
+                emu.emu.memory().u16().index_move(current_op_pnt + 4) as u32,
+            );
+            let string = format!(
+                "debug_PrintFlag: {} - {} = {}",
+                const_string.to_string_lossy(),
+                game_var_name,
+                game_var_value
+            );
+            take_pycallback_and_send_hook!(
+                HOOK_CB_DEBUG_PRINT,
+                cb,
+                HookExecute::DebugPrint(cb, EmulatorLogType::DebugPrint, string)
+            );
+        } else if current_op == 0x6D {
+            // debug_PrintScenario
+            let var_id = emu.emu.memory().u16().index_move(current_op_pnt + 2);
+            let (game_var_name, game_var_value) = emu.vars().read(&emu.emu, var_id, 0, &srs);
+            let (_, level_value) = emu.vars().read(&emu.emu, var_id, 1, &srs);
+            let const_string = read_ssb_str_mem(
+                emu,
+                ssb_str_table_pointer,
+                emu.emu.memory().u16().index_move(current_op_pnt + 4) as u32,
+            );
+            let string = format!(
+                "debug_PrintScenario: {} - {} = scenario:{}, level:{}",
+                const_string.to_string_lossy(),
+                game_var_name,
+                game_var_value,
+                level_value
+            );
+
+            take_pycallback_and_send_hook!(
+                HOOK_CB_DEBUG_PRINT,
+                cb,
+                HookExecute::DebugPrint(cb, EmulatorLogType::DebugPrint, string)
+            );
+        }
+
+        1
+    })
+}
+
+extern "C" fn hook_debug_get_debug_flag_get_input(_addr: u32, _size: i32) -> i32 {
+    SELF.with(|emu_cell| {
+        let emu = unsafe { (*emu_cell.get()).as_mut().unwrap() };
+
+        emu.debug_flag_temp_input = emu.emu.memory().get_reg(Processor::Arm9, Register::R0);
+
+        1
+    })
+}
+
+extern "C" fn hook_debug_get_debug_flag_1(_addr: u32, _size: i32) -> i32 {
+    SELF.with(|emu_cell| {
+        let emu = unsafe { (*emu_cell.get()).as_mut().unwrap() };
+        if emu.debug_flag_temp_input < NB_DEBUG_FLAGS_1 as u32 {
+            emu.emu.memory_mut().set_reg(
+                Processor::Arm9,
+                Register::R0,
+                emu.debug_flags_1[emu.debug_flag_temp_input as usize] as u32,
+            );
+        } else {
+            warn!(
+                "Invalid in hook_debug_get_debug_flag_1: {}",
+                emu.debug_flag_temp_input
+            );
+        }
+        1
+    })
+}
+
+extern "C" fn hook_debug_get_debug_flag_2(_addr: u32, _size: i32) -> i32 {
+    SELF.with(|emu_cell| {
+        let emu = unsafe { (*emu_cell.get()).as_mut().unwrap() };
+        if emu.debug_flag_temp_input < NB_DEBUG_FLAGS_2 as u32 {
+            emu.emu.memory_mut().set_reg(
+                Processor::Arm9,
+                Register::R0,
+                emu.debug_flags_2[emu.debug_flag_temp_input as usize] as u32,
+            );
+        } else {
+            warn!(
+                "Invalid in hook_debug_get_debug_flag_2: {}",
+                emu.debug_flag_temp_input
+            );
+        }
+        1
+    })
+}
+
+extern "C" fn hook_debug_set_debug_flag_1(_addr: u32, _size: i32) -> i32 {
+    SELF.with(|emu_cell| {
+        let emu = unsafe { (*emu_cell.get()).as_mut().unwrap() };
+        let flag_id = emu.emu.memory().get_reg(Processor::Arm9, Register::R0);
+        let value = emu.emu.memory().get_reg(Processor::Arm9, Register::R1);
+
+        if flag_id < NB_DEBUG_FLAGS_1 as u32 {
+            emu.debug_flags_1[flag_id as usize] = value > 0;
+        }
+
+        take_pycallback_and_send_hook!(
+            HOOK_CB_SET_DEBUG_FLAG,
+            cb,
+            HookExecute::DebugSetFlag(cb, 1, flag_id, value)
+        );
+
+        1
+    })
+}
+
+extern "C" fn hook_debug_set_debug_flag_2(_addr: u32, _size: i32) -> i32 {
+    SELF.with(|emu_cell| {
+        let emu = unsafe { (*emu_cell.get()).as_mut().unwrap() };
+        let flag_id = emu.emu.memory().get_reg(Processor::Arm9, Register::R0);
+        let value = emu.emu.memory().get_reg(Processor::Arm9, Register::R1);
+
+        if flag_id < NB_DEBUG_FLAGS_2 as u32 {
+            emu.debug_flags_2[flag_id as usize] = value > 0;
+        }
+
+        take_pycallback_and_send_hook!(
+            HOOK_CB_SET_DEBUG_FLAG,
+            cb,
+            HookExecute::DebugSetFlag(cb, 2, flag_id, value)
+        );
+
+        1
+    })
+}
+
+extern "C" fn hook_debug_debug_mode(_addr: u32, _size: i32) -> i32 {
+    SELF.with(|emu_cell| {
+        let emu = unsafe { (*emu_cell.get()).as_mut().unwrap() };
+        if emu.debug_mode {
+            let old_v = emu.emu.memory_mut().get_reg(Processor::Arm9, Register::R0);
+            let new_v = if old_v == 0 { 1 } else { 0 };
+            emu.emu
+                .memory_mut()
+                .set_reg(Processor::Arm9, Register::R0, new_v);
+        }
+        1
+    })
+}
+
 const ID_OF_SLOT_OF_OVERLAY11: u32 = 0xD;
 
-fn overlay11_loaded(emu: &mut SsbEmulatorDesmume) -> bool {
+fn overlay11_loaded(emu: &SsbEmulatorDesmume) -> bool {
     let group_content = emu
         .emu
         .memory()
         .u32()
         .index_move(emu.address_loaded_overlay_group_1);
     group_content == ID_OF_SLOT_OF_OVERLAY11
+}
+
+fn read_ssb_str_mem(emu: &SsbEmulatorDesmume, str_table_pointer: u32, index: u32) -> CString {
+    let rel_pointer_to_const_str = emu
+        .emu
+        .memory()
+        .u16()
+        .index_move(str_table_pointer + (index * 2)) as u32;
+    let abs_pointer_to_const_str = str_table_pointer + rel_pointer_to_const_str;
+    // TODO: Support PMD2 strings?
+    emu.emu.memory().read_cstring(abs_pointer_to_const_str)
 }

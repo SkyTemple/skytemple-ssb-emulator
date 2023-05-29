@@ -25,6 +25,7 @@ use byteorder::{LittleEndian, ReadBytesExt};
 #[derive(Debug, Clone)]
 pub struct ScriptRuntime {
     buffer: Vec<u8>,
+    pub(crate) ptr_to_self: u32,
     pub(crate) hanger_ssb: u8,
     pub(crate) current_opcode_addr_relative: u32,
     pub(crate) script_target_type: ScriptTargetType,
@@ -32,13 +33,14 @@ pub struct ScriptRuntime {
     pub(crate) is_in_unionall: bool,
     pub(crate) has_call_stack: bool,
     pub(crate) call_stack_current_opcode_addr_relative: u32,
+    pub(crate) start_addr_str_table: u32,
 }
 
 impl ScriptRuntime {
     /// This is not the actual size, increase this if we need to read more!
     pub const SIZE: u32 = 0x34;
 
-    pub fn new(buffer: Vec<u8>, unionall_load_addr: u32) -> Self {
+    pub fn new(ptr_to_self: u32, buffer: Vec<u8>, unionall_load_addr: u32) -> Self {
         let start_addr_routine_infos = (&buffer[0x14..]).read_u32::<LittleEndian>().unwrap();
         let is_in_unionall =
             unionall_load_addr != 0 && start_addr_routine_infos == unionall_load_addr;
@@ -69,7 +71,9 @@ impl ScriptRuntime {
         let call_stack_current_opcode_addr = (&buffer[0x2c..]).read_u32::<LittleEndian>().unwrap();
         let call_stack_current_opcode_addr_relative =
             (call_stack_current_opcode_addr - call_stack_start_addr_routine_infos) / 2;
+        let start_addr_str_table = (&buffer[0x20..]).read_u32::<LittleEndian>().unwrap();
         Self {
+            ptr_to_self,
             buffer,
             hanger_ssb,
             current_opcode_addr_relative,
@@ -78,6 +82,7 @@ impl ScriptRuntime {
             has_call_stack,
             is_in_unionall,
             call_stack_current_opcode_addr_relative,
+            start_addr_str_table,
         }
     }
 

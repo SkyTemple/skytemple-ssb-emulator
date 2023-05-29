@@ -17,12 +17,14 @@
  * along with SkyTemple.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+use crate::game_variable::GameVariablesValueAddresses;
 use crate::state::{
     command_channel_blocking_send, command_channel_send, init, EmulatorCommand,
     EMULATOR_IS_RUNNING, EMULATOR_THREAD, TICK_COUNT,
 };
 use log::warn;
-use pyo3::pyfunction;
+use pyo3::types::PySequence;
+use pyo3::{pyfunction, PyResult};
 use std::ops::DerefMut;
 use std::sync::atomic::Ordering;
 
@@ -59,9 +61,49 @@ pub fn emulator_resume() {
 }
 
 #[pyfunction]
+#[allow(clippy::too_many_arguments)]
+#[pyo3(signature = (
+    filename,
+    *,
+    address_loaded_overlay_group_1,
+    global_variable_table_start_addr,
+    local_variable_table_start_addr,
+    global_script_var_values,
+    game_state_values,
+    language_info_data,
+    game_mode,
+    debug_special_episode_number,
+    notify_note,
+))]
 /// Open a ROM file. This will reset emulation, if the emulator is currently running.
-pub fn emulator_open_rom(filename: String, address_loaded_overlay_group_1: u32) {
-    command_channel_blocking_send(EmulatorCommand::OpenRom(filename, address_loaded_overlay_group_1))
+pub fn emulator_open_rom(
+    filename: String,
+    address_loaded_overlay_group_1: u32,
+    global_variable_table_start_addr: u32,
+    local_variable_table_start_addr: u32,
+    global_script_var_values: u32,
+    game_state_values: u32,
+    language_info_data: u32,
+    game_mode: u32,
+    debug_special_episode_number: u32,
+    notify_note: u32,
+) {
+    command_channel_blocking_send(EmulatorCommand::OpenRom(
+        filename,
+        address_loaded_overlay_group_1,
+        (
+            global_variable_table_start_addr,
+            local_variable_table_start_addr,
+        ),
+        GameVariablesValueAddresses {
+            values: global_script_var_values,
+            game_state_values,
+            language_info_data,
+            game_mode,
+            debug_special_episode_number,
+            notify_note,
+        },
+    ))
 }
 
 #[pyfunction]
