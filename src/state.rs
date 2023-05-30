@@ -42,6 +42,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ops::Range;
 use std::panic::{catch_unwind, panic_any, AssertUnwindSafe, UnwindSafe};
+use std::pin::Pin;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
@@ -71,7 +72,7 @@ thread_local! {
 // Global state
 lazy_static! {
     /// The display buffer, RGBx, ready for display.
-    pub static ref DISPLAY_BUFFER: DisplayBuffer = DisplayBuffer::new();
+    pub static ref DISPLAY_BUFFER: Pin<Box<DisplayBuffer>> = DisplayBuffer::new();
     /// The global registry of breakpoints for a loaded ROM.
     pub static ref BREAKPOINT_MANAGER: Arc<Mutex<Option<BreakpointManager>>> = Arc::new(Mutex::new(None));
     /// Condvar and breakpoint state for the debugger when breaking and waking to be woken up again.

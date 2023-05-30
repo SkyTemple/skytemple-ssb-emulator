@@ -19,13 +19,14 @@
 
 use crate::state::DISPLAY_BUFFER;
 use crate::stbytes::StBytes;
-use crate::{SCREEN_HEIGHT_BOTH, SCREEN_WIDTH};
+use crate::SCREEN_PIXEL_SIZE;
 use pyo3::prelude::*;
 use std::borrow::Cow;
 use std::cell::Cell;
+use std::pin::Pin;
 use std::ptr;
 
-pub const DISPLAY_BUFFER_SIZE: usize = SCREEN_WIDTH * SCREEN_HEIGHT_BOTH * 4;
+pub const DISPLAY_BUFFER_SIZE: usize = SCREEN_PIXEL_SIZE * 2 * 4;
 
 /// Display buffer.
 #[derive(Debug, Clone)]
@@ -37,23 +38,21 @@ pub struct DisplayBuffer {
     //write: Cell<*mut [u8; DISPLAY_BUFFER_SIZE]>,
 }
 
-impl Default for DisplayBuffer {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl DisplayBuffer {
     /// Constructs a new 0-initialized display buffer.
-    pub fn new() -> Self {
-        let mut slf = Self {
+    pub fn new() -> Pin<Box<Self>> {
+        let mut slf = Box::pin(Self {
             slot_a: [0; DISPLAY_BUFFER_SIZE],
             //slot_b: [0; DISPLAY_BUFFER_SIZE],
             read_write: Cell::new(ptr::null_mut()),
             //write: Cell::new(ptr::null_mut()),
-        };
-        slf.read_write.set(&mut slf.slot_a);
-        //slf.write.set(&mut slf.slot_a);//slf.write.set(&mut slf.slot_b);
+        });
+        // SAFETY: This is OK because we do not move any data out of the struct.
+        unsafe {
+            let slf_mut = Pin::get_unchecked_mut(Pin::as_mut(&mut slf));
+            slf_mut.read_write.set(&mut slf_mut.slot_a);
+        }
+        //slf.write.set(&mut slf.slot_b);
         slf
     }
 
