@@ -43,7 +43,7 @@ use std::cell::{RefCell, UnsafeCell};
 use std::collections::HashMap;
 use std::ffi::CString;
 use std::mem;
-use std::ops::{Deref, DerefMut};
+use std::ops::{Deref, DerefMut, Range};
 use std::rc::Rc;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
@@ -282,7 +282,7 @@ impl SsbEmulatorDesmume {
             EmulatorCommand::OpenRom(
                 filename,
                 address_loaded_overlay_group_1,
-                (local_addr, global_addr),
+                (global_addr, local_addr),
                 value_addrs,
             ) => {
                 self.emu
@@ -318,6 +318,7 @@ impl SsbEmulatorDesmume {
                     .ok();
             }
             EmulatorCommand::SavestateLoadFile(filename) => {
+                self.emu.volume_set(self.volume);
                 self.emu
                     .savestate_mut()
                     .load_file(&filename)
@@ -327,6 +328,7 @@ impl SsbEmulatorDesmume {
                         send_hook(HookExecute::Error(msg));
                     })
                     .ok();
+                self.emu.volume_set(self.volume);
             }
             EmulatorCommand::SetLanguage(lang) => self.emu.set_language(lang.into()),
             EmulatorCommand::UnpressAllKeys => self.emu.input_mut().keypad_update(0),
@@ -346,17 +348,32 @@ impl SsbEmulatorDesmume {
                 EMULATOR_JOYSTICK_SUPPORTS.store(was_success, Ordering::Release);
             }
             EmulatorCommand::ReadMem(range, cb) => {
-                let mem = self.emu.memory().u8().index_move(range);
+                let mem = self.do_read_mem(range);
                 send_hook(HookExecute::ReadMemResult(mem, cb));
             }
             EmulatorCommand::ReadMemFromPtr(ptr, shift, size, cb) => {
-                let start = self.emu.memory().u32().index_move(ptr);
-                let mem = self
-                    .emu
-                    .memory()
-                    .u8()
-                    .index_move((start + shift)..(ptr + size));
+                let start = self.emu.memory().u32().index_move(ptr) + shift;
+                let range = start..(start + size);
+                let mem = self.do_read_mem(range);
                 send_hook(HookExecute::ReadMemResult(mem, cb));
+            }
+            EmulatorCommand::ReadMemFromPtrWithValidityCheck(
+                ptr,
+                shift,
+                size,
+                validity_offset,
+                cb,
+            ) => {
+                let start = self.emu.memory().u32().index_move(ptr) + shift;
+                let valid = self.emu.memory().i16().index_move(start + validity_offset);
+                if valid > 0 {
+                    dbg_trace!("Memory read with validity check was valid.");
+                    let range = start..(start + size);
+                    let mem = self.do_read_mem(range);
+                    send_hook(HookExecute::ReadMemResult(mem, cb));
+                } else {
+                    dbg_trace!("Memory read with validity check was invalid.");
+                }
             }
             EmulatorCommand::SetJoystickControls(jscfg) => {
                 for (i, jskey) in jscfg.into_iter().enumerate() {
@@ -692,18 +709,9 @@ impl SsbEmulatorDesmume {
                     ),
                     UNIONALL_LOAD_ADDRESS.load(Ordering::Acquire),
                 );
-
-                if let Some(vars) = self.vars.as_ref() {
-                    vars.with_defs(&self.emu, |maybe_defs| {
-                        if let Ok(defs) = maybe_defs {
-                            let mut values = Vec::with_capacity(defs.locals.len());
-                            for var in &defs.locals {
-                                let (_, val) = vars.read(&self.emu, var.id as u16, 0, Some(&srs));
-                                values.push(val);
-                            }
-                            send_hook(HookExecute::SyncLocalVars(cb.clone(), values));
-                        }
-                    })
+                let values = self.get_local_vars(&srs);
+                if let Some(values) = values {
+                    send_hook(HookExecute::SyncLocalVars(cb.clone(), values));
                 }
             }
             DebugCommand::SyncMemTables(address_table_head, cb) => {
@@ -728,6 +736,39 @@ impl SsbEmulatorDesmume {
 
     fn vars(&self) -> &GameVariableManipulator {
         self.vars.as_ref().unwrap()
+    }
+    fn do_read_mem(&self, range: Range<u32>) -> Vec<u8> {
+        #[cfg(not(debug_assertions))]
+        let mem = self.emu.memory().u8().index_move(range);
+        #[cfg(debug_assertions)]
+        let mem = {
+            let time_before = std::time::Instant::now();
+            let mem = self.emu.memory().u8().index_move(range);
+            let time_after = std::time::Instant::now();
+            dbg_trace!(
+                "memory read of {} bytes took {} ms.",
+                mem.len(),
+                (time_after - time_before).as_millis()
+            );
+            mem
+        };
+        mem
+    }
+    fn get_local_vars(&self, srs: &ScriptRuntime) -> Option<Vec<i32>> {
+        self.vars.as_ref().and_then(|vars| {
+            vars.with_defs(&self.emu, |maybe_defs| {
+                if let Ok(defs) = maybe_defs {
+                    let mut values = Vec::with_capacity(defs.locals.len());
+                    for var in &defs.locals {
+                        let (_, val) = vars.read(&self.emu, var.id as u16, 0, Some(srs));
+                        values.push(val);
+                    }
+                    Some(values)
+                } else {
+                    None
+                }
+            })
+        })
     }
 }
 
@@ -817,6 +858,7 @@ extern "C" fn hook_script_debug(_addr: u32, _size: i32) -> i32 {
                 .index_move(start_script_struct..(start_script_struct + ScriptRuntime::SIZE)),
             UNIONALL_LOAD_ADDRESS.load(Ordering::Acquire),
         );
+        let current_opcode = emu.emu.memory().u16().index_move(srs.current_opcode_addr) as u32;
 
         let mut breakpoint_manager_guard =
             BREAKPOINT_MANAGER.lock().expect("debugger lock tainted");
@@ -853,7 +895,12 @@ extern "C" fn hook_script_debug(_addr: u32, _size: i32) -> i32 {
                     drop(breakpoint_manager_guard);
 
                     {
-                        let state = BreakpointState::new(&srs, script_target_slot);
+                        let state = BreakpointState::new(
+                            &srs,
+                            start_script_struct,
+                            script_target_slot,
+                            emu.get_local_vars(&srs).unwrap_or_else(|| vec![0; 4]),
+                        );
                         take_pycallback_and_send_hook!(
                             HOOK_CB_SCRIPT_DEBUG,
                             cb,
@@ -861,7 +908,7 @@ extern "C" fn hook_script_debug(_addr: u32, _size: i32) -> i32 {
                                 cb,
                                 breakpoint_state: Some(state),
                                 script_target_slot_id: script_target_slot,
-                                current_opcode: srs.current_opcode_addr_relative,
+                                current_opcode,
                                 script_runtime_struct_mem: StBytes(Cow::Owned(
                                     srs.clone().into_inner()
                                 )),
@@ -869,6 +916,7 @@ extern "C" fn hook_script_debug(_addr: u32, _size: i32) -> i32 {
                         );
                     }
 
+                    emu.emu.volume_set(0);
                     // BREAK DEBUGGER
                     let break_signal = BREAK.clone();
                     let (break_mutex, break_cv) = &*break_signal;
@@ -967,7 +1015,7 @@ extern "C" fn hook_script_debug(_addr: u32, _size: i32) -> i32 {
                     cb,
                     breakpoint_state: None,
                     script_target_slot_id: script_target_slot,
-                    current_opcode: srs.current_opcode_addr_relative,
+                    current_opcode,
                     script_runtime_struct_mem: StBytes(Cow::Owned(srs.clone().into_inner())),
                 }
             );
@@ -1032,7 +1080,7 @@ extern "C" fn hook_ssx_load(_addr: u32, _size: i32) -> i32 {
             let name = emu
                 .emu
                 .memory()
-                .read_cstring(emu.emu.memory().get_reg(Processor::Arm9, Register::R1));
+                .read_cstring(emu.emu.memory().get_reg(Processor::Arm9, Register::R3));
             let name_as_string = name.to_string_lossy().to_string();
 
             take_pycallback_and_send_hook!(

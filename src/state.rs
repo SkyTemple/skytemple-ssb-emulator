@@ -196,6 +196,7 @@ pub enum EmulatorCommand {
     JoyInit,
     ReadMem(Range<u32>, ReadMemCallback),
     ReadMemFromPtr(u32, u32, u32, ReadMemCallback),
+    ReadMemFromPtrWithValidityCheck(u32, u32, u32, u32, ReadMemCallback),
     SetJoystickControls([i32; 15]),
     KeypadAddKey(u16),
     KeypadRmKey(u16),

@@ -203,6 +203,8 @@ def emulator_poll(error_consumer: EmulatorErrorCallback):
 
     The error_consumer callback function will be called for any error that occurred since
     the last poll.
+    
+    Returns true if at least one event was processed.
     """
     ...
 
@@ -224,6 +226,15 @@ def emulator_read_mem_from_ptr(ptr: u32, shift: u32, size: u32, cb: Callable[[by
     and `emulator_poll` has been called to poll the value.
     """
     ...
+
+
+def emulator_read_mem_from_ptr_with_validity_check(ptr: u32, shift: u32, size: u32, validity_offset: u32, cb: Callable[[bytes], None]):
+    """
+    Same as `emulator_read_mem_from_ptr`, but only calls the callback if the
+    value at `validity_offset` read as an `i16` and starting from `(*ptr)+shift` is `> 0`.
+    """
+    ...
+
 
 
 EmulatorScriptVariableSetHook = Callable[[int, int, int], None]
@@ -734,7 +745,13 @@ class BreakpointState:
     def script_runtime_struct_mem(self) -> bytes: ...
 
     @property
+    def script_runtime_struct_addr(self) -> u32: ...
+
+    @property
     def script_target_slot_id(self) -> u32: ...
+
+    @property
+    def local_vars_values(self) -> Sequence[int]: ...
 
     @property
     def current_opcode(self) -> u32: ...

@@ -47,3 +47,23 @@ pub fn emulator_read_mem_from_ptr(ptr: u32, shift: u32, size: u32, cb: PyObject)
         ReadMemCallback(cb),
     ))
 }
+
+#[pyfunction]
+/// Same as [`emulator_read_mem_from_ptr`], but only calls the callback if the
+/// value at `validity_offset` read as an `i16` and starting from `(*ptr)+shift` is `> 0`.
+pub fn emulator_read_mem_from_ptr_with_validity_check(
+    ptr: u32,
+    shift: u32,
+    size: u32,
+    validity_offset: u32,
+    cb: PyObject,
+) {
+    dbg_trace!("emulator_read_mem_from_ptr_with_validity_check - {ptr} - {shift} - {size} - {validity_offset}");
+    command_channel_send(EmulatorCommand::ReadMemFromPtrWithValidityCheck(
+        ptr,
+        shift,
+        size,
+        validity_offset,
+        ReadMemCallback(cb),
+    ))
+}

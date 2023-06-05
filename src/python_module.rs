@@ -32,6 +32,11 @@ use pyo3::Python;
 
 #[pymodule]
 fn skytemple_ssb_emulator(py: Python, module: &PyModule) -> PyResult<()> {
+    // TODO: Performance of acquiring the GIL for logs?
+    // should probably revamp logging in SkyTemple / Ssb Debugger itself instead
+    // (configure debug logging only for development and then make sure pyo3_log
+    // caches the log levels so it doesn't take the GIL if debug logging is disabled for
+    // debug logs.
     pyo3_log::init();
     debug!("Loading skytemple_ssb_emulator...");
 
@@ -91,6 +96,10 @@ fn skytemple_ssb_emulator(py: Python, module: &PyModule) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(emulator_set_boost, module)?)?;
     module.add_function(wrap_pyfunction!(emulator_read_mem, module)?)?;
     module.add_function(wrap_pyfunction!(emulator_read_mem_from_ptr, module)?)?;
+    module.add_function(wrap_pyfunction!(
+        emulator_read_mem_from_ptr_with_validity_check,
+        module
+    )?)?;
     module.add_function(wrap_pyfunction!(emulator_poll, module)?)?;
     module.add_function(wrap_pyfunction!(emulator_wait_one_cycle, module)?)?;
     module.add_function(wrap_pyfunction!(emulator_load_controls, module)?)?;

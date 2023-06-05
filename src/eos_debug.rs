@@ -28,6 +28,7 @@ use log::debug;
 use pyo3::exceptions::{PyIOError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::PySequence;
+use pyo3::AsPyPointer;
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::fs;
@@ -878,9 +879,13 @@ pub struct BreakpointState {
     #[pyo3(get)]
     state: BreakpointStateType,
     #[pyo3(get)]
+    script_runtime_struct_addr: u32,
+    #[pyo3(get)]
     script_runtime_struct_mem: StBytes<'static>,
     #[pyo3(get)]
     script_target_slot_id: u32,
+    #[pyo3(get)]
+    local_vars_values: Vec<i32>,
     #[pyo3(get)]
     current_opcode: u32,
     #[pyo3(get)]
@@ -892,7 +897,12 @@ pub struct BreakpointState {
 impl BreakpointState {
     /// Creates a new breakpoint state.
     /// NOTE: This also sets the global break resume info to stopped.
-    pub(crate) fn new(srs: &ScriptRuntime, script_target_slot_id: u32) -> Self {
+    pub(crate) fn new(
+        srs: &ScriptRuntime,
+        srs_addr: u32,
+        script_target_slot_id: u32,
+        local_vars_values: Vec<i32>,
+    ) -> Self {
         dbg_trace!("BreakpointState::new - {script_target_slot_id}");
         let break_signal = BREAK.clone();
         let (break_mutex, _) = &*break_signal;
@@ -912,7 +922,9 @@ impl BreakpointState {
             hanger_id: srs.hanger_ssb,
             release_hooks: vec![],
             manual_step_opcode_offset: None,
+            script_runtime_struct_addr: srs_addr,
             script_runtime_struct_mem: StBytes(Cow::Owned(srs.clone().into_inner())),
+            local_vars_values,
         }
     }
 }
@@ -936,7 +948,7 @@ impl BreakpointState {
         dbg_trace!("BreakpointState::fail_hard");
         let mut slfbrw = slf.borrow_mut();
         slfbrw.state = BreakpointStateType::FailHard;
-        Self::wakeup(slf)
+        Self::wakeup(slfbrw)
     }
 
     /// Resume normal code execution.
@@ -944,7 +956,7 @@ impl BreakpointState {
         dbg_trace!("BreakpointState::resume");
         let mut slfbrw = slf.borrow_mut();
         slfbrw.state = BreakpointStateType::Resume;
-        Self::wakeup(slf)
+        Self::wakeup(slfbrw)
     }
 
     /// Step into the current call (if it's a call that creates a call stack), otherwise same as
@@ -953,7 +965,7 @@ impl BreakpointState {
         dbg_trace!("BreakpointState::step_into");
         let mut slfbrw = slf.borrow_mut();
         slfbrw.state = BreakpointStateType::StepInto;
-        Self::wakeup(slf)
+        Self::wakeup(slfbrw)
     }
 
     /// Step over the current call (remain in the current script file + skip debugging any calls
@@ -962,7 +974,7 @@ impl BreakpointState {
         dbg_trace!("BreakpointState::step_over");
         let mut slfbrw = slf.borrow_mut();
         slfbrw.state = BreakpointStateType::StepOver;
-        Self::wakeup(slf)
+        Self::wakeup(slfbrw)
     }
 
     /// Step out of the current routine, if there's a call stack, otherwise same as resume.
@@ -970,7 +982,7 @@ impl BreakpointState {
         dbg_trace!("BreakpointState::step_out");
         let mut slfbrw = slf.borrow_mut();
         slfbrw.state = BreakpointStateType::StepOut;
-        Self::wakeup(slf)
+        Self::wakeup(slfbrw)
     }
 
     /// Break at the next opcode, even if it's for a different script target.
@@ -978,7 +990,7 @@ impl BreakpointState {
         dbg_trace!("BreakpointState::step_next");
         let mut slfbrw = slf.borrow_mut();
         slfbrw.state = BreakpointStateType::StepNext;
-        Self::wakeup(slf)
+        Self::wakeup(slfbrw)
     }
 
     /// Transition to the StepManual state and set the opcode to halt at.
@@ -987,7 +999,7 @@ impl BreakpointState {
         let mut slfbrw = slf.borrow_mut();
         slfbrw.state = BreakpointStateType::StepManual;
         slfbrw.manual_step_opcode_offset = Some(opcode_offset);
-        Self::wakeup(slf)
+        Self::wakeup(slfbrw)
     }
 
     /// Transition to the specified state. Can not transition to Stopped.
@@ -1000,13 +1012,12 @@ impl BreakpointState {
             ));
         }
         slfbrw.state = state_type;
-        Self::wakeup(slf)
+        Self::wakeup(slfbrw)
     }
 
-    pub fn wakeup(slf: &PyCell<Self>) -> PyResult<()> {
+    pub fn wakeup(slfbrw: PyRefMut<BreakpointState>) -> PyResult<()> {
         dbg_trace!("BreakpointState::wakeup");
         debug!("Breakpoint State: Waking up");
-        let slfbrw = slf.borrow();
         // Wakeup debugger
         let break_signal = BREAK.clone();
         let (break_mutex, break_cv) = &*break_signal;
@@ -1020,8 +1031,16 @@ impl BreakpointState {
         break_cv.notify_one();
 
         // Wakeup hooks
-        for hook in &slfbrw.release_hooks {
-            hook.0.call1(slf.py(), (slf.to_object(slf.py()),))?;
+        let hooks = slfbrw.release_hooks.clone();
+        let py = slfbrw.py();
+        let slfpy = PyRefMut::as_ptr(&slfbrw);
+        for hook in hooks {
+            // SAFETY: This should be good because we are not accessing slfbrw anymore,
+            //         however I'm probably missing a higher-level way to do this tbh.
+            unsafe {
+                hook.0
+                    .call1(py, (PyObject::from_borrowed_ptr(py, slfpy),))?;
+            }
         }
         Ok(())
     }

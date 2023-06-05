@@ -27,11 +27,12 @@ use std::borrow::Cow;
 #[pyfunction]
 /// Polls new emulator events from the emulator thread and runs all pending hooks.
 /// All pending hook functions will be run blocking on the thread calling emulator_poll.
-pub fn emulator_poll(py: Python, error_consumer: PyObject) -> PyResult<()> {
-    dbg_trace!("emulator_poll");
+/// Returns true if at least one event was processed.
+pub fn emulator_poll(py: Python, error_consumer: PyObject) -> PyResult<bool> {
     HOOK_CHANNEL_RECEIVE.with(|receiver_cell| {
         let receiver_opt = receiver_cell.borrow();
         let receiver = receiver_opt.as_ref().expect(ERR_EMU_INIT);
+        #[allow(clippy::never_loop)] // see note below
         for event in receiver.try_iter() {
             dbg_trace!("emulator_poll - processing {event:?}");
             match event {
@@ -96,8 +97,12 @@ pub fn emulator_poll(py: Python, error_consumer: PyObject) -> PyResult<()> {
                     cb.0.call(py, (by,), None)?;
                 }
             }
+            // TODO: Is this a bug in pyo3? If we try to process multiple of the same
+            //       callbacks in one go, the RC of the python objects get messed up
+            //       and we segfault.
+            return Ok(true);
         }
-        Ok(())
+        Ok(false)
     })
 }
 
@@ -105,5 +110,6 @@ pub fn emulator_poll(py: Python, error_consumer: PyObject) -> PyResult<()> {
 /// Waits until the emulator has completed the currently processing frame and all queued-up commands
 /// previous to this call.
 pub fn emulator_wait_one_cycle() {
+    dbg_trace!("emulator_wait_one_cycle");
     command_channel_blocking_send(EmulatorCommand::NoOp)
 }

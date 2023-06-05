@@ -68,9 +68,11 @@ impl GameVariableManipulator {
     where
         F: Fn(PyResult<&ScriptVariableTables>) -> X,
     {
-        if let Some(defs) = self.defs.borrow().as_ref() {
+        let brw = self.defs.borrow();
+        if let Some(defs) = brw.as_ref() {
             cb(Ok(defs))
         } else {
+            drop(brw);
             match self.make_defs(emu) {
                 Ok(defs) => {
                     self.defs.replace(Some(defs));
@@ -82,23 +84,26 @@ impl GameVariableManipulator {
     }
 
     fn make_defs(&self, emu: &DeSmuME) -> PyResult<ScriptVariableTables> {
-        ScriptVariableTables::new_with_name_reader(
-            emu.memory()
-                .u8()
-                .index_move(
-                    self.defs_global_addr
-                        ..(self.defs_global_addr + (COUNT_GLOBAL_VARS * DEFINITION_STRUCT_SIZE)),
-                )
-                .into(),
-            emu.memory()
-                .u8()
-                .index_move(
-                    self.defs_local_addr
-                        ..(self.defs_local_addr + (COUNT_LOCAL_VARS * DEFINITION_STRUCT_SIZE)),
-                )
-                .into(),
-            &|addr| Ok(emu.memory().read_cstring(addr)),
-        )
+        let global_mem: skytemple_rust::bytes::StBytes = emu
+            .memory()
+            .u8()
+            .index_move(
+                self.defs_global_addr
+                    ..(self.defs_global_addr + (COUNT_GLOBAL_VARS * DEFINITION_STRUCT_SIZE)),
+            )
+            .into();
+        let local_mem: skytemple_rust::bytes::StBytes = emu
+            .memory()
+            .u8()
+            .index_move(
+                self.defs_local_addr
+                    ..(self.defs_local_addr + (COUNT_LOCAL_VARS * DEFINITION_STRUCT_SIZE)),
+            )
+            .into();
+
+        ScriptVariableTables::new_with_name_reader(global_mem, local_mem, &|addr| {
+            Ok(emu.memory().read_cstring(addr))
+        })
         .map_err(|err| {
             warn!("Failed reading variable table. Maybe ROM is still loading. Error: {err}");
             err
