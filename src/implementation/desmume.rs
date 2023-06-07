@@ -743,7 +743,7 @@ impl SsbEmulatorDesmume {
                 );
                 let values = self.get_local_vars(&srs);
                 if let Some(values) = values {
-                    send_hook(HookExecute::SyncLocalVars(cb.clone(), values));
+                    send_hook(HookExecute::SyncLocalVars(cb, values));
                 }
             }
             DebugCommand::SyncMemTables(address_table_head, cb) => {
