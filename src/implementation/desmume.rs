@@ -35,7 +35,7 @@ use crate::state::{
 use crate::stbytes::StBytes;
 use crossbeam_channel::{Receiver, Sender};
 use log::warn;
-use rs_desmume::mem::{IndexMove, Processor, Register};
+use rs_desmume::mem::{IndexMove, IndexSet, Processor, Register};
 use rs_desmume::DeSmuME;
 use sprintf::{vsprintf, Printf};
 use std::borrow::Cow;
@@ -78,6 +78,7 @@ pub struct SsbEmulatorDesmume {
     address_loaded_overlay_group_1: u32,
     vars: Option<GameVariableManipulator>,
     debug_mode: bool,
+    skip_dungeon_floors: Option<(bool, u32)>,
     debug_flag_temp_input: u32,
     debug_flags_1: [bool; NB_DEBUG_FLAGS_1],
     debug_flags_2: [bool; NB_DEBUG_FLAGS_2],
@@ -154,6 +155,7 @@ impl SsbEmulatorDesmumeGlobal {
                     address_loaded_overlay_group_1: 0,
                     vars: None,
                     debug_mode: false,
+                    skip_dungeon_floors: None,
                     debug_flag_temp_input: 0,
                     debug_flags_1: Default::default(),
                     debug_flags_2: Default::default(),
@@ -209,6 +211,11 @@ impl SsbEmulator for SsbEmulatorDesmume {
             command_channel_blocking_receive.try_recv(update_blocking_cb)
         }
 
+        // Process the dungeon skip setting
+        if let Some((value, addr_dungeon_ptr)) = self.skip_dungeon_floors {
+            self.apply_dungeon_skip(addr_dungeon_ptr, value);
+        }
+
         if should_shutdown {
             SsbEmulatorCommandResult::Shutdown
         } else {
@@ -253,6 +260,22 @@ impl SsbEmulator for SsbEmulatorDesmumeGlobal {
 }
 
 impl SsbEmulatorDesmume {
+    fn apply_dungeon_skip(&mut self, addr_dungeon_ptr: u32, value: bool) {
+        if self.emu.is_running() && TICK_COUNT.load(Ordering::Relaxed) % 30 == 0 {
+            dbg_trace!("SsbEmulatorDesmume::apply_dungeon_skip - {addr_dungeon_ptr}");
+            if overlay29_loaded(self) {
+                let dungeon_ptr = self.emu.memory().u32().index_move(addr_dungeon_ptr);
+                dbg_trace!("SsbEmulatorDesmume::apply_dungeon_skip - loc: {dungeon_ptr}");
+                // safety/sanity check
+                if dungeon_ptr != 0 {
+                    let mut u8_mem = self.emu.memory_mut().u8();
+                    u8_mem.index_set(dungeon_ptr + 0x6, &(value as u8));
+                    u8_mem.index_set(dungeon_ptr + 0x8, &(value as u8));
+                }
+            }
+        }
+    }
+
     fn do_process(&mut self, cmd: EmulatorCommand) -> bool {
         dbg_trace!("SsbEmulatorDesmume::do_process - {cmd:?}");
         match cmd {
@@ -680,6 +703,9 @@ impl SsbEmulatorDesmume {
                 if bit < NB_DEBUG_FLAGS_2 {
                     self.debug_flags_2[bit] = value;
                 }
+            }
+            DebugCommand::SetDungeonSkip(addr, value) => {
+                self.skip_dungeon_floors = Some((value, addr))
             }
             DebugCommand::SyncGlobalVars(cb) => {
                 if let Some(vars) = self.vars.as_ref() {
@@ -1414,14 +1440,22 @@ extern "C" fn hook_exec_ground(addr: u32, _size: i32) -> i32 {
 }
 
 const ID_OF_SLOT_OF_OVERLAY11: u32 = 0xD;
+const ID_OF_SLOT_OF_OVERLAY29: u32 = 0xE;
 
-fn overlay11_loaded(emu: &SsbEmulatorDesmume) -> bool {
-    let group_content = emu
-        .emu
+#[inline]
+fn overlay_group1_loaded(emu: &SsbEmulatorDesmume) -> u32 {
+    emu.emu
         .memory()
         .u32()
-        .index_move(emu.address_loaded_overlay_group_1);
-    group_content == ID_OF_SLOT_OF_OVERLAY11
+        .index_move(emu.address_loaded_overlay_group_1)
+}
+
+fn overlay11_loaded(emu: &SsbEmulatorDesmume) -> bool {
+    overlay_group1_loaded(emu) == ID_OF_SLOT_OF_OVERLAY11
+}
+
+fn overlay29_loaded(emu: &SsbEmulatorDesmume) -> bool {
+    overlay_group1_loaded(emu) == ID_OF_SLOT_OF_OVERLAY29
 }
 
 fn read_ssb_str_mem(emu: &SsbEmulatorDesmume, str_table_pointer: u32, index: u32) -> CString {

@@ -174,6 +174,7 @@ pub enum DebugCommand {
     SetDebugMode(bool),
     SetDebugFlag1(usize, bool),
     SetDebugFlag2(usize, bool),
+    SetDungeonSkip(u32, bool),
     SyncGlobalVars(DebugSyncGlobalVarsCallback),
     SyncLocalVars(u32, DebugSyncLocalVarsCallback),
     SyncMemTables(u32, DebugSyncMemTablesCallback),

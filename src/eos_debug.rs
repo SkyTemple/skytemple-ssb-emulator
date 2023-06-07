@@ -372,6 +372,16 @@ pub fn emulator_set_debug_flag_2(bit: usize, value: bool) {
 }
 
 #[pyfunction]
+/// Enables or disables the automatic skip of dungeon floors when inside of dungeons.
+pub fn emulator_set_debug_dungeon_skip(addr_of_ptr_to_dungeon_struct: u32, value: bool) {
+    dbg_trace!("emulator_set_debug_dungeon_skip - {addr_of_ptr_to_dungeon_struct} - {value}");
+    command_channel_send(EmulatorCommand::Debug(DebugCommand::SetDungeonSkip(
+        addr_of_ptr_to_dungeon_struct,
+        value,
+    )));
+}
+
+#[pyfunction]
 /// Retrieve the values of global variable values from the emulator and passes
 /// them to the callback when ready and [`emulator_poll`] is called.
 pub fn emulator_sync_vars(cb: PyObject) {

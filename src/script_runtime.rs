@@ -55,7 +55,8 @@ impl ScriptRuntime {
         }
         let hanger_ssb = hanger_ssb as u8;
         let current_opcode_addr = (&buffer[0x1c..]).read_u32::<LittleEndian>().unwrap();
-        let current_opcode_addr_relative = (current_opcode_addr - start_addr_routine_infos) / 2;
+        let current_opcode_addr_relative =
+            (current_opcode_addr.wrapping_sub(start_addr_routine_infos)) / 2;
         let script_target_type_raw = (&buffer[0x08..]).read_u32::<LittleEndian>().unwrap();
         let script_target_type = match script_target_type_raw {
             1 => ScriptTargetType::Generic,
@@ -71,7 +72,7 @@ impl ScriptRuntime {
             (&buffer[0x24..]).read_u32::<LittleEndian>().unwrap();
         let call_stack_current_opcode_addr = (&buffer[0x2c..]).read_u32::<LittleEndian>().unwrap();
         let call_stack_current_opcode_addr_relative =
-            (call_stack_current_opcode_addr - call_stack_start_addr_routine_infos) / 2;
+            (call_stack_current_opcode_addr.wrapping_sub(call_stack_start_addr_routine_infos)) / 2;
         let start_addr_str_table = (&buffer[0x20..]).read_u32::<LittleEndian>().unwrap();
         Self {
             ptr_to_self,

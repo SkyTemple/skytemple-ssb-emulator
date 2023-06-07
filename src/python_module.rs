@@ -155,6 +155,7 @@ fn skytemple_ssb_emulator(py: Python, module: &PyModule) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(emulator_set_debug_mode, module)?)?;
     module.add_function(wrap_pyfunction!(emulator_set_debug_flag_1, module)?)?;
     module.add_function(wrap_pyfunction!(emulator_set_debug_flag_2, module)?)?;
+    module.add_function(wrap_pyfunction!(emulator_set_debug_dungeon_skip, module)?)?;
     module.add_function(wrap_pyfunction!(emulator_sync_vars, module)?)?;
     module.add_function(wrap_pyfunction!(emulator_sync_local_vars, module)?)?;
     module.add_function(wrap_pyfunction!(

@@ -475,6 +475,13 @@ def emulator_set_debug_flag_2(bit: int, value: bool):
     ...
 
 
+def emulator_set_debug_dungeon_skip(addr_of_ptr_to_dungeon_struct: u32, value: bool):
+    """
+    Enables or disables the automatic skip of dungeon floors when inside of dungeons.
+    """
+    ...
+
+
 def emulator_tick() -> u64:
     """Returns a value close or equal to the current tick count of the emulator. Rolls over at the u64 limit."""
     ...
