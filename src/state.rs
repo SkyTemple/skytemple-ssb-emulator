@@ -26,7 +26,14 @@ use crate::game_variable::GameVariablesValueAddresses;
 use crate::implementation::desmume::SsbEmulatorDesmumeGlobal;
 use crate::implementation::{SsbEmulator, SsbEmulatorCommandResult};
 use crate::language::Language;
-use crate::pycallbacks::{DebugRegisterDebugFlagCallback, DebugRegisterDebugPrintCallback, DebugRegisterExecGroundCallback, DebugRegisterScriptDebugCallback, DebugRegisterScriptVariableSetCallback, DebugRegisterSsbLoadCallback, DebugRegisterSsxLoadCallback, DebugRegisterTalkLoadCallback, DebugSyncGlobalVarsCallback, DebugSyncLocalVarsCallback, DebugSyncMemTablesCallback, EmulatorMemTableEntryCallback, JoyGetNumberConnectedCallback, JoyGetSetKeyCallback, ReadMemCallback};
+use crate::pycallbacks::{
+    DebugRegisterDebugFlagCallback, DebugRegisterDebugPrintCallback,
+    DebugRegisterExecGroundCallback, DebugRegisterScriptDebugCallback,
+    DebugRegisterScriptVariableSetCallback, DebugRegisterSsbLoadCallback,
+    DebugRegisterSsxLoadCallback, DebugRegisterTalkLoadCallback, DebugSyncGlobalVarsCallback,
+    DebugSyncLocalVarsCallback, DebugSyncMemTablesCallback, EmulatorMemTableEntryCallback,
+    JoyGetNumberConnectedCallback, JoyGetSetKeyCallback, ReadMemCallback,
+};
 use crate::stbytes::StBytes;
 use crossbeam_channel::{bounded, unbounded, Receiver, Sender};
 use lazy_static::lazy_static;
@@ -162,7 +169,7 @@ pub enum DebugCommand {
     WriteGameVariable {
         var_id: u32,
         var_offset: u32,
-        value: u32,
+        value: i32,
     },
     SetDebugMode(bool),
     SetDebugFlag1(usize, bool),

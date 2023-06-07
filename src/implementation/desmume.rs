@@ -828,7 +828,7 @@ macro_rules! take_pycallback_and_send_hook {
 }
 
 extern "C" fn hook_script_variable_set(_addr: u32, _size: i32) -> i32 {
-    dbg_trace!("desmume: hook_script_variable_set");
+    //dbg_trace!("desmume: hook_script_variable_set");
     SELF.with(|emu_cell| {
         let emu = unsafe { (*emu_cell.get()).as_mut().unwrap() };
 
@@ -849,7 +849,7 @@ extern "C" fn hook_script_variable_set(_addr: u32, _size: i32) -> i32 {
 }
 
 extern "C" fn hook_script_variable_set_with_offset(_addr: u32, _size: i32) -> i32 {
-    dbg_trace!("desmume: hook_script_variable_set_with_offset");
+    //dbg_trace!("desmume: hook_script_variable_set_with_offset");
     SELF.with(|emu_cell| {
         let emu = unsafe { (*emu_cell.get()).as_mut().unwrap() };
 
@@ -873,7 +873,7 @@ extern "C" fn hook_script_variable_set_with_offset(_addr: u32, _size: i32) -> i3
 
 /// MAIN DEBUGGER HOOK.
 extern "C" fn hook_script_debug(_addr: u32, _size: i32) -> i32 {
-    dbg_trace!("desmume: hook_script_debug");
+    //dbg_trace!("desmume: hook_script_debug");
     SELF.with(|emu_cell| {
         let emu = unsafe { (*emu_cell.get()).as_mut().unwrap() };
 
@@ -1058,7 +1058,7 @@ extern "C" fn hook_script_debug(_addr: u32, _size: i32) -> i32 {
 }
 
 extern "C" fn hook_ssb_load(_addr: u32, _size: i32) -> i32 {
-    dbg_trace!("desmume: hook_ssb_load");
+    //dbg_trace!("desmume: hook_ssb_load");
     SELF.with(|emu_cell| {
         let emu = unsafe { (*emu_cell.get()).as_mut().unwrap() };
 
@@ -1092,7 +1092,7 @@ extern "C" fn hook_ssb_load(_addr: u32, _size: i32) -> i32 {
 }
 
 extern "C" fn hook_ssx_load(_addr: u32, _size: i32) -> i32 {
-    dbg_trace!("desmume: hook_ssx_load");
+    //dbg_trace!("desmume: hook_ssx_load");
     SELF.with(|emu_cell| {
         let emu = unsafe { (*emu_cell.get()).as_mut().unwrap() };
 
@@ -1127,7 +1127,7 @@ extern "C" fn hook_ssx_load(_addr: u32, _size: i32) -> i32 {
 }
 
 extern "C" fn hook_talk_load(_addr: u32, _size: i32) -> i32 {
-    dbg_trace!("desmume: hook_talk_load");
+    //dbg_trace!("desmume: hook_talk_load");
     SELF.with(|emu_cell| {
         let emu = unsafe { (*emu_cell.get()).as_mut().unwrap() };
 
@@ -1160,7 +1160,7 @@ extern "C" fn hook_talk_load(_addr: u32, _size: i32) -> i32 {
 }
 
 extern "C" fn hook_write_unionall_load_addr_change(_addr: u32, _size: i32) -> i32 {
-    dbg_trace!("desmume: hook_write_unionall_load_addr_change");
+    //dbg_trace!("desmume: hook_write_unionall_load_addr_change");
     SELF.with(|emu_cell| {
         let emu = unsafe { (*emu_cell.get()).as_mut().unwrap() };
         update_unionall_load_address(emu);
@@ -1169,7 +1169,7 @@ extern "C" fn hook_write_unionall_load_addr_change(_addr: u32, _size: i32) -> i3
 }
 
 fn update_unionall_load_address(emu: &mut SsbEmulatorDesmume) {
-    dbg_trace!("desmume: update_unionall_load_address");
+    //dbg_trace!("desmume: update_unionall_load_address");
     if overlay11_loaded(emu) {
         UNIONALL_LOAD_ADDRESS.store(
             emu.emu
@@ -1182,12 +1182,12 @@ fn update_unionall_load_address(emu: &mut SsbEmulatorDesmume) {
 }
 
 extern "C" fn hook_debug_print_printfs0(_addr: u32, _size: i32) -> i32 {
-    dbg_trace!("desmume: hook_debug_print_printfs0");
+    //dbg_trace!("desmume: hook_debug_print_printfs0");
     _hook_debug_print_printfs(0)
 }
 
 extern "C" fn hook_debug_print_printfs1(_addr: u32, _size: i32) -> i32 {
-    dbg_trace!("desmume: hook_debug_print_printfs1");
+    //dbg_trace!("desmume: hook_debug_print_printfs1");
     _hook_debug_print_printfs(1)
 }
 
@@ -1239,7 +1239,7 @@ fn _hook_debug_print_printfs(register_offset: u32) -> i32 {
 }
 
 extern "C" fn script_hook_addr_script(_addr: u32, _size: i32) -> i32 {
-    dbg_trace!("desmume: script_hook_addr_script");
+    //dbg_trace!("desmume: script_hook_addr_script");
     SELF.with(|emu_cell| {
         let emu = unsafe { (*emu_cell.get()).as_mut().unwrap() };
 
@@ -1322,7 +1322,7 @@ extern "C" fn script_hook_addr_script(_addr: u32, _size: i32) -> i32 {
 }
 
 extern "C" fn hook_debug_get_debug_flag_get_input(_addr: u32, _size: i32) -> i32 {
-    dbg_trace!("desmume: hook_debug_get_debug_flag_get_input");
+    //dbg_trace!("desmume: hook_debug_get_debug_flag_get_input");
     SELF.with(|emu_cell| {
         let emu = unsafe { (*emu_cell.get()).as_mut().unwrap() };
 
@@ -1333,7 +1333,7 @@ extern "C" fn hook_debug_get_debug_flag_get_input(_addr: u32, _size: i32) -> i32
 }
 
 extern "C" fn hook_debug_get_debug_flag_1(_addr: u32, _size: i32) -> i32 {
-    dbg_trace!("desmume: hook_debug_get_debug_flag_1");
+    //dbg_trace!("desmume: hook_debug_get_debug_flag_1");
     SELF.with(|emu_cell| {
         let emu = unsafe { (*emu_cell.get()).as_mut().unwrap() };
         if emu.debug_flag_temp_input < NB_DEBUG_FLAGS_1 as u32 {
@@ -1353,7 +1353,7 @@ extern "C" fn hook_debug_get_debug_flag_1(_addr: u32, _size: i32) -> i32 {
 }
 
 extern "C" fn hook_debug_get_debug_flag_2(_addr: u32, _size: i32) -> i32 {
-    dbg_trace!("desmume: hook_debug_get_debug_flag_2");
+    //dbg_trace!("desmume: hook_debug_get_debug_flag_2");
     SELF.with(|emu_cell| {
         let emu = unsafe { (*emu_cell.get()).as_mut().unwrap() };
         if emu.debug_flag_temp_input < NB_DEBUG_FLAGS_2 as u32 {
@@ -1373,7 +1373,7 @@ extern "C" fn hook_debug_get_debug_flag_2(_addr: u32, _size: i32) -> i32 {
 }
 
 extern "C" fn hook_debug_set_debug_flag_1(_addr: u32, _size: i32) -> i32 {
-    dbg_trace!("desmume: hook_debug_set_debug_flag_1");
+    //dbg_trace!("desmume: hook_debug_set_debug_flag_1");
     SELF.with(|emu_cell| {
         let emu = unsafe { (*emu_cell.get()).as_mut().unwrap() };
         let flag_id = emu.emu.memory().get_reg(Processor::Arm9, Register::R0);
@@ -1394,7 +1394,7 @@ extern "C" fn hook_debug_set_debug_flag_1(_addr: u32, _size: i32) -> i32 {
 }
 
 extern "C" fn hook_debug_set_debug_flag_2(_addr: u32, _size: i32) -> i32 {
-    dbg_trace!("desmume: hook_debug_set_debug_flag_2");
+    //dbg_trace!("desmume: hook_debug_set_debug_flag_2");
     SELF.with(|emu_cell| {
         let emu = unsafe { (*emu_cell.get()).as_mut().unwrap() };
         let flag_id = emu.emu.memory().get_reg(Processor::Arm9, Register::R0);
@@ -1415,7 +1415,7 @@ extern "C" fn hook_debug_set_debug_flag_2(_addr: u32, _size: i32) -> i32 {
 }
 
 extern "C" fn hook_debug_debug_mode(_addr: u32, _size: i32) -> i32 {
-    dbg_trace!("desmume: hook_debug_debug_mode");
+    //dbg_trace!("desmume: hook_debug_debug_mode");
     SELF.with(|emu_cell| {
         let emu = unsafe { (*emu_cell.get()).as_mut().unwrap() };
         if emu.debug_mode {
@@ -1430,7 +1430,7 @@ extern "C" fn hook_debug_debug_mode(_addr: u32, _size: i32) -> i32 {
 }
 
 extern "C" fn hook_exec_ground(addr: u32, _size: i32) -> i32 {
-    dbg_trace!("desmume: hook_exec_ground");
+    //dbg_trace!("desmume: hook_exec_ground");
     SELF.with(|emu_cell| {
         let emu = unsafe { (*emu_cell.get()).as_mut().unwrap() };
 

@@ -253,7 +253,7 @@ impl GameVariableManipulator {
         emu: &mut DeSmuME,
         var_id: u16,
         read_offset: u16,
-        value: u32,
+        value: i32,
         srs: Option<&ScriptRuntime>,
     ) {
         dbg_trace!("GameVariableManipulator::write - {var_id} - {read_offset} - {value}");
@@ -319,11 +319,11 @@ impl GameVariableManipulator {
             ScriptVariableType::U32 => emu
                 .memory_mut()
                 .u32()
-                .index_set(value_ptr + (read_offset as u32 * 4), &{ value }),
+                .index_set(value_ptr + (read_offset as u32 * 4), &{ value as u32 }),
             ScriptVariableType::I32 => emu
                 .memory_mut()
                 .i32()
-                .index_set(value_ptr + (read_offset as u32 * 4), &(value as i32)),
+                .index_set(value_ptr + (read_offset as u32 * 4), &(value)),
             ScriptVariableType::Special => {
                 // Special cases (offset is ignored for these)
                 // TODO: These are just reverses of the getters, I didn't really look at the ASM yet.
@@ -345,7 +345,7 @@ impl GameVariableManipulator {
                         misc_data_begin + (some_sort_of_offset as u32 * 4) + 0x1394;
                     emu.memory_mut()
                         .u32()
-                        .index_set(address_carry_gold, &(value));
+                        .index_set(address_carry_gold, &(value as u32));
                 } else if var_id == 0x3D {
                     // BANK_GOLD
                     let misc_data_begin = emu
@@ -355,7 +355,7 @@ impl GameVariableManipulator {
                     let address_bank_gold = misc_data_begin + 0x13a0;
                     emu.memory_mut()
                         .u32()
-                        .index_set(address_bank_gold, &(value));
+                        .index_set(address_bank_gold, &(value as u32));
                 } else if var_id == 0x47 {
                     // LANGUAGE_TYPE
                     emu.memory_mut()
@@ -370,9 +370,10 @@ impl GameVariableManipulator {
                     // EXECUTE_SPECIAL_EPISODE_TYPE
                     let game_mode = emu.memory().u8().index_move(self.value_addrs.game_mode);
                     if game_mode == 1 {
-                        emu.memory_mut()
-                            .u32()
-                            .index_set(self.value_addrs.debug_special_episode_number, &(value));
+                        emu.memory_mut().u32().index_set(
+                            self.value_addrs.debug_special_episode_number,
+                            &(value as u32),
+                        );
                     }
                 } else if var_id == 0x70 {
                     // NOTE_MODIFY_FLAG

@@ -334,7 +334,7 @@ pub fn emulator_unionall_load_address_update() {
 #[pyfunction]
 /// Queues writing the game variable to the game.
 /// This is done at latest the next time the emulator's memory is ready to be written to.
-pub fn emulator_write_game_variable(var_id: u32, var_offset: u32, value: u32) {
+pub fn emulator_write_game_variable(var_id: u32, var_offset: u32, value: i32) {
     dbg_trace!("emulator_write_game_variable - {var_id} - {var_offset} - {value}");
     command_channel_send(EmulatorCommand::Debug(DebugCommand::WriteGameVariable {
         var_id,
