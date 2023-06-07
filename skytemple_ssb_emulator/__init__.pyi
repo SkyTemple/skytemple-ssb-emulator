@@ -575,12 +575,13 @@ def emulator_get_joy_number_connected(cb: Callable[[int], None]):
     ...
 
 
-def emulator_joy_get_set_key(key: int) -> int:
+def emulator_joy_get_set_key(key: int, cb: Callable[[int], None]):
     """
     Pause the thread and wait for the user to press a button.
     This button will be assigned to the specified emulator key. Joysticks must be initialized.
     This does not update the internal joystick control map. Collect set keys and after
     all changes use `emulator_set_jscfg`.
+    The callback is called eventually when the emulator is polled (`emulator_poll`).
     """
     ...
 

@@ -26,14 +26,7 @@ use crate::game_variable::GameVariablesValueAddresses;
 use crate::implementation::desmume::SsbEmulatorDesmumeGlobal;
 use crate::implementation::{SsbEmulator, SsbEmulatorCommandResult};
 use crate::language::Language;
-use crate::pycallbacks::{
-    DebugRegisterDebugFlagCallback, DebugRegisterDebugPrintCallback,
-    DebugRegisterExecGroundCallback, DebugRegisterScriptDebugCallback,
-    DebugRegisterScriptVariableSetCallback, DebugRegisterSsbLoadCallback,
-    DebugRegisterSsxLoadCallback, DebugRegisterTalkLoadCallback, DebugSyncGlobalVarsCallback,
-    DebugSyncLocalVarsCallback, DebugSyncMemTablesCallback, EmulatorMemTableEntryCallback,
-    JoyGetNumberConnectedCallback, ReadMemCallback,
-};
+use crate::pycallbacks::{DebugRegisterDebugFlagCallback, DebugRegisterDebugPrintCallback, DebugRegisterExecGroundCallback, DebugRegisterScriptDebugCallback, DebugRegisterScriptVariableSetCallback, DebugRegisterSsbLoadCallback, DebugRegisterSsxLoadCallback, DebugRegisterTalkLoadCallback, DebugSyncGlobalVarsCallback, DebugSyncLocalVarsCallback, DebugSyncMemTablesCallback, EmulatorMemTableEntryCallback, JoyGetNumberConnectedCallback, JoyGetSetKeyCallback, ReadMemCallback};
 use crate::stbytes::StBytes;
 use crossbeam_channel::{bounded, unbounded, Receiver, Sender};
 use lazy_static::lazy_static;
@@ -203,7 +196,7 @@ pub enum EmulatorCommand {
     KeypadRmKey(u16),
     TouchSetPos(u16, u16),
     TouchRelease,
-    JoyGetSetKey(u16),
+    JoyGetSetKey(u16, JoyGetSetKeyCallback),
     JoyGetNumberConnected(JoyGetNumberConnectedCallback),
     Debug(DebugCommand),
 }
@@ -216,6 +209,7 @@ pub enum HookExecute {
     ReadMemResult(Vec<u8>, ReadMemCallback),
     /// Call callback for `emulator_get_joy_number_connected`.
     JoyGetNumberConnected(u16, JoyGetNumberConnectedCallback),
+    JoyGetSetKey(u16, JoyGetSetKeyCallback),
     DebugScriptVariableSet(DebugRegisterScriptVariableSetCallback, u32, u32, u32),
     DebugScriptDebug {
         cb: DebugRegisterScriptDebugCallback,

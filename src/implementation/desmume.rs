@@ -407,8 +407,14 @@ impl SsbEmulatorDesmume {
             EmulatorCommand::KeypadRmKey(keymask) => self.emu.input_mut().keypad_rm_key(keymask),
             EmulatorCommand::TouchSetPos(x, y) => self.emu.input_mut().touch_set_pos(x, y),
             EmulatorCommand::TouchRelease => self.emu.input_mut().touch_release(),
-            EmulatorCommand::JoyGetSetKey(key) => {
-                self.emu.input_mut().joy_get_set_key(key).ok();
+            EmulatorCommand::JoyGetSetKey(key, cb) => {
+                // todo: should probably do proper error handling here.
+                let keycode = self
+                    .emu
+                    .input_mut()
+                    .joy_get_set_key(key)
+                    .unwrap_or_default();
+                send_hook(HookExecute::JoyGetSetKey(keycode, cb));
             }
             EmulatorCommand::JoyGetNumberConnected(cb) => {
                 let number = self.emu.input().joy_number_connected().unwrap_or_default();

@@ -17,7 +17,7 @@
  * along with SkyTemple.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use crate::pycallbacks::JoyGetNumberConnectedCallback;
+use crate::pycallbacks::{JoyGetNumberConnectedCallback, JoyGetSetKeyCallback};
 use crate::state::{
     command_channel_blocking_send, command_channel_send, EmulatorCommand,
     EMULATOR_JOYSTICK_SUPPORTS,
@@ -243,9 +243,10 @@ pub fn emulator_get_joy_number_connected(cb: PyObject) {
 /// This button will be assigned to the specified emulator key. Joysticks must be initialized.
 /// This does not update the internal joystick control map. Collect set keys and after
 /// all changes use `emulator_set_jscfg`.
-pub fn emulator_joy_get_set_key(key: u16) {
-    dbg_trace!("emulator_joy_get_set_key");
-    command_channel_blocking_send(EmulatorCommand::JoyGetSetKey(key));
+/// The callback is called eventually when the emulator is polled (`emulator_poll`).
+pub fn emulator_joy_get_set_key(key: u16, cb: PyObject) {
+    dbg_trace!("emulator_joy_get_set_key - {key}");
+    command_channel_send(EmulatorCommand::JoyGetSetKey(key, JoyGetSetKeyCallback(cb)));
 }
 
 #[pyfunction]

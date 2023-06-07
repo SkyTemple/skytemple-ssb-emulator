@@ -45,6 +45,9 @@ pub fn emulator_poll(py: Python, error_consumer: PyObject) -> PyResult<bool> {
                 HookExecute::JoyGetNumberConnected(val, cb) => {
                     cb.0.call(py, (val,), None)?;
                 }
+                HookExecute::JoyGetSetKey(val, cb) => {
+                    cb.0.call(py, (val,), None)?;
+                }
                 HookExecute::DebugScriptVariableSet(cb, var_id, var_offset, var_value) => {
                     cb.0.call(py, (var_id, var_offset, var_value), None)?;
                 }

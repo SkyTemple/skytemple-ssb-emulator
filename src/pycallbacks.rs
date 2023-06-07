@@ -28,6 +28,10 @@ pub struct ReadMemCallback(pub PyObject);
 pub struct JoyGetNumberConnectedCallback(pub PyObject);
 
 #[derive(Debug, Clone)]
+/// Python callable with signature def _(keycode: int).
+pub struct JoyGetSetKeyCallback(pub PyObject);
+
+#[derive(Debug, Clone)]
 /// Python callable with signature def _(var_id: int, var_offset: int, value: int).
 pub struct DebugRegisterScriptVariableSetCallback(pub PyObject);
 
