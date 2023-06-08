@@ -25,13 +25,13 @@ use crate::state::{
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PySequence;
-use rs_desmume::input::keymask;
+use desmume_rs::input::keymask;
 use std::cell::RefCell;
 use std::sync::atomic::Ordering;
 
-pub const NB_KEYS: u8 = rs_desmume::input::NB_KEYS;
-pub type EmulatorKeys = rs_desmume::input::Key;
-pub const NO_KEY_SET: u16 = rs_desmume::input::NO_KEY_SET;
+pub const NB_KEYS: u8 = desmume_rs::input::NB_KEYS;
+pub type EmulatorKeys = desmume_rs::input::Key;
+pub const NO_KEY_SET: u16 = desmume_rs::input::NO_KEY_SET;
 
 thread_local! {
     /// Registered emulator controls.

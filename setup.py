@@ -13,7 +13,7 @@ with open(path.join(this_directory, 'README.rst'), encoding='utf-8') as f:
 setup(
     name="skytemple-ssb-emulator",
     version=__version__,
-    rust_extensions=[RustExtension(f"skytemple_ssb_emulator", binding=Binding.PyO3)],
+    rust_extensions=[RustExtension(f"skytemple_ssb_emulator", binding=Binding.PyO3)], # set debug=True for unoptimized build.
     packages=["skytemple_ssb_emulator"],
     package_data={"skytemple_ssb_emulator": ["py.typed", "*.pyi"]},
     install_requires=[

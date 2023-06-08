@@ -11,10 +11,8 @@ crate-type = ["cdylib"]
 name = "skytemple_ssb_emulator"
 
 [dependencies]
-# TODO: Stable
-rs_desmume = { path = "/home/marco/dev/skytemple/skytemple/rs-desmume" }
-# TODO: Stable
-skytemple_rust = { path = "/home/marco/dev/skytemple/skytemple/skytemple_rust", default-features = false, features = ["script_var_table"] }
+desmume-rs = "0.1"
+skytemple_rust = { git = "https://github.com/SkyTemple/skytemple-rust.git", default-features = false, features = ["script_var_table"] }
 pyo3 = { version = "0.18", features = ["extension-module"] }
 pyo3-log = "0.8"
 log = "0.4"

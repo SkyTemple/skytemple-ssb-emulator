@@ -19,8 +19,8 @@
 
 use crate::script_runtime::ScriptRuntime;
 use log::warn;
-use rs_desmume::mem::{IndexMove, IndexSet};
-use rs_desmume::DeSmuME;
+use desmume_rs::mem::{IndexMove, IndexSet};
+use desmume_rs::DeSmuME;
 use skytemple_rust::st_script_var_table::{
     ScriptVariableDefinition, ScriptVariableTables, ScriptVariableType, COUNT_GLOBAL_VARS,
     COUNT_LOCAL_VARS, DEFINITION_STRUCT_SIZE,

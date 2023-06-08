@@ -66,15 +66,15 @@ impl Language {
     }
 }
 
-impl From<Language> for rs_desmume::Language {
+impl From<Language> for desmume_rs::Language {
     fn from(value: Language) -> Self {
         match value {
-            Language::Japanese => rs_desmume::Language::Japanese,
-            Language::English => rs_desmume::Language::English,
-            Language::French => rs_desmume::Language::French,
-            Language::German => rs_desmume::Language::German,
-            Language::Italian => rs_desmume::Language::Italian,
-            Language::Spanish => rs_desmume::Language::Spanish,
+            Language::Japanese => desmume_rs::Language::Japanese,
+            Language::English => desmume_rs::Language::English,
+            Language::French => desmume_rs::Language::French,
+            Language::German => desmume_rs::Language::German,
+            Language::Italian => desmume_rs::Language::Italian,
+            Language::Spanish => desmume_rs::Language::Spanish,
         }
     }
 }

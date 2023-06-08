@@ -17,7 +17,7 @@
  * along with SkyTemple.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use rs_desmume::DeSmuME;
+use desmume_rs::DeSmuME;
 use sprintf::{ConversionSpecifier, ConversionType, Printf};
 
 // TODO: Currently DeSmuME specific.

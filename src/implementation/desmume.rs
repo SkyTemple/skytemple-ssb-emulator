@@ -35,8 +35,8 @@ use crate::state::{
 use crate::stbytes::StBytes;
 use crossbeam_channel::{Receiver, Sender};
 use log::warn;
-use rs_desmume::mem::{IndexMove, IndexSet, Processor, Register};
-use rs_desmume::DeSmuME;
+use desmume_rs::mem::{IndexMove, IndexSet, Processor, Register};
+use desmume_rs::DeSmuME;
 use sprintf::{vsprintf, Printf};
 use std::borrow::Cow;
 use std::cell::{RefCell, UnsafeCell};

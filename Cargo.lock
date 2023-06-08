@@ -91,6 +91,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "desmume-rs"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "19664c1f5cdfe64ed5c756049f7a661e6a18d82e0843eb1434f0ee1f36569e18"
+dependencies = [
+ "desmume-sys",
+ "thiserror",
+]
+
+[[package]]
+name = "desmume-sys"
+version = "0.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "949754a3adff80ee8a5beb6508484f559ba2c7d3e822ebcfec670e814d606acc"
+dependencies = [
+ "glob",
+ "libc",
+ "pkg-config",
+ "tempfile",
+]
+
+[[package]]
 name = "either"
 version = "1.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -408,6 +430,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9f746c4065a8fa3fe23974dd82f15431cc8d40779821001404d10d2e79ca7d79"
 
 [[package]]
+name = "pkg-config"
+version = "0.3.27"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "26072860ba924cbfa98ea39c8c19b4dd6a4a25423dbdf219c1eca91aa0cf6964"
+
+[[package]]
 name = "proc-macro2"
 version = "1.0.58"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -538,16 +566,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rs_desmume"
-version = "1.0.0"
-dependencies = [
- "glob",
- "libc",
- "tempfile",
- "thiserror",
-]
-
-[[package]]
 name = "ryu"
 version = "1.0.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -579,6 +597,7 @@ dependencies = [
 [[package]]
 name = "skytemple_rust"
 version = "1.6.0"
+source = "git+https://github.com/SkyTemple/skytemple-rust.git#48a7a5f58d3416507bb28d1b123ab07a3bc05fb3"
 dependencies = [
  "bytes",
  "encoding",
@@ -597,6 +616,7 @@ dependencies = [
 [[package]]
 name = "skytemple_rust_macros"
 version = "1.4.0"
+source = "git+https://github.com/SkyTemple/skytemple-rust.git#48a7a5f58d3416507bb28d1b123ab07a3bc05fb3"
 dependencies = [
  "quote",
  "syn",
@@ -605,6 +625,7 @@ dependencies = [
 [[package]]
 name = "skytemple_rust_macros_no_py"
 version = "1.4.0"
+source = "git+https://github.com/SkyTemple/skytemple-rust.git#48a7a5f58d3416507bb28d1b123ab07a3bc05fb3"
 dependencies = [
  "quote",
  "syn",
@@ -616,11 +637,11 @@ version = "1.6.0"
 dependencies = [
  "byteorder",
  "crossbeam-channel",
+ "desmume-rs",
  "lazy_static",
  "log",
  "pyo3",
  "pyo3-log",
- "rs_desmume",
  "serde_json",
  "skytemple_rust",
  "sprintf",
