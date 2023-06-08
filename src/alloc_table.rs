@@ -19,9 +19,9 @@
 
 use crate::pycallbacks::EmulatorMemTableEntryCallback;
 use crate::state::{command_channel_send, DebugCommand, EmulatorCommand};
-use pyo3::prelude::*;
 use desmume_rs::mem::IndexMove;
 use desmume_rs::DeSmuME;
+use pyo3::prelude::*;
 
 #[pyclass(module = "ssb_emulator")]
 #[repr(u32)]

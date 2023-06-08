@@ -22,10 +22,10 @@ use crate::state::{
     command_channel_blocking_send, command_channel_send, EmulatorCommand,
     EMULATOR_JOYSTICK_SUPPORTS,
 };
+use desmume_rs::input::keymask;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PySequence;
-use desmume_rs::input::keymask;
 use std::cell::RefCell;
 use std::sync::atomic::Ordering;
 
