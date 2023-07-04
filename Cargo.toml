@@ -13,7 +13,7 @@ name = "skytemple_ssb_emulator"
 [dependencies]
 desmume-rs = "0.1"
 skytemple_rust = { git = "https://github.com/SkyTemple/skytemple-rust.git", default-features = false, features = ["script_var_table"] }
-pyo3 = { version = "0.18", features = ["extension-module"] }
+pyo3 = { version = "0.19", features = ["extension-module"] }
 pyo3-log = "0.8"
 log = "0.4"
 crossbeam-channel = "0.5"
