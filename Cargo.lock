@@ -278,9 +278,9 @@ dependencies = [
 
 [[package]]
 name = "itertools"
-version = "0.10.5"
+version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b0fd2260e829bddf4cb6ea802289de2f86d6a7a690192fbe91b3f46e0f2c8473"
+checksum = "b1c173a5686ce8bfa551b3563d0c2170bf24ca44da99c7ca4bfdab5418c3fe57"
 dependencies = [
  "either",
 ]
@@ -364,13 +364,13 @@ dependencies = [
 
 [[package]]
 name = "num-derive"
-version = "0.3.3"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "876a53fff98e03a936a674b29568b0e605f06b29372c2489ff4de23f1949743d"
+checksum = "9e6a0fd4f737c707bd9086cc16c925f294943eb62eb71499e9fd4cf71f8b9f4e"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 1.0.109",
+ "syn 2.0.18",
 ]
 
 [[package]]
@@ -641,7 +641,7 @@ dependencies = [
 [[package]]
 name = "skytemple_rust"
 version = "1.6.0"
-source = "git+https://github.com/SkyTemple/skytemple-rust.git#48a7a5f58d3416507bb28d1b123ab07a3bc05fb3"
+source = "git+https://github.com/SkyTemple/skytemple-rust.git#8b9049f823b36b328bfd33c86d19df1e6ad9875f"
 dependencies = [
  "bytes",
  "encoding",
@@ -660,7 +660,7 @@ dependencies = [
 [[package]]
 name = "skytemple_rust_macros"
 version = "1.4.0"
-source = "git+https://github.com/SkyTemple/skytemple-rust.git#48a7a5f58d3416507bb28d1b123ab07a3bc05fb3"
+source = "git+https://github.com/SkyTemple/skytemple-rust.git#8b9049f823b36b328bfd33c86d19df1e6ad9875f"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -669,7 +669,7 @@ dependencies = [
 [[package]]
 name = "skytemple_rust_macros_no_py"
 version = "1.4.0"
-source = "git+https://github.com/SkyTemple/skytemple-rust.git#48a7a5f58d3416507bb28d1b123ab07a3bc05fb3"
+source = "git+https://github.com/SkyTemple/skytemple-rust.git#8b9049f823b36b328bfd33c86d19df1e6ad9875f"
 dependencies = [
  "quote",
  "syn 1.0.109",
