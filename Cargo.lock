@@ -641,7 +641,7 @@ dependencies = [
 [[package]]
 name = "skytemple_rust"
 version = "1.6.0"
-source = "git+https://github.com/SkyTemple/skytemple-rust.git#ffb43f6bc803a95cae8a8d2142512a6a9f51fc56"
+source = "git+https://github.com/SkyTemple/skytemple-rust.git#d13e004fb366b505ba6cfd8416c30e7bee4b7c4d"
 dependencies = [
  "bytes",
  "encoding",
@@ -660,7 +660,7 @@ dependencies = [
 [[package]]
 name = "skytemple_rust_macros"
 version = "1.4.0"
-source = "git+https://github.com/SkyTemple/skytemple-rust.git#ffb43f6bc803a95cae8a8d2142512a6a9f51fc56"
+source = "git+https://github.com/SkyTemple/skytemple-rust.git#d13e004fb366b505ba6cfd8416c30e7bee4b7c4d"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -669,7 +669,7 @@ dependencies = [
 [[package]]
 name = "skytemple_rust_macros_no_py"
 version = "1.4.0"
-source = "git+https://github.com/SkyTemple/skytemple-rust.git#ffb43f6bc803a95cae8a8d2142512a6a9f51fc56"
+source = "git+https://github.com/SkyTemple/skytemple-rust.git#d13e004fb366b505ba6cfd8416c30e7bee4b7c4d"
 dependencies = [
  "quote",
  "syn 1.0.109",
