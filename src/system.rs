@@ -29,6 +29,12 @@ use std::ops::DerefMut;
 use std::sync::atomic::Ordering;
 
 #[pyfunction]
+/// Checks if the emulator was initialized with `emulator_start` (from this thread).
+pub fn emulator_is_initialized() -> bool {
+    EMULATOR_THREAD.with(|thread_cell| thread_cell.borrow().is_some())
+}
+
+#[pyfunction]
 /// Starts the emulator. After this the other functions will work correctly, but only
 /// from the thread that originally called this function.
 pub fn emulator_start() {

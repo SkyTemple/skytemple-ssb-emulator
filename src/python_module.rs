@@ -78,6 +78,7 @@ fn skytemple_ssb_emulator(py: Python, module: &PyModule) -> PyResult<()> {
     emulator_keys.add("NO_KEY_SET", NO_KEY_SET)?;
     module.add_submodule(emulator_keys)?;
 
+    module.add_function(wrap_pyfunction!(emulator_is_initialized, module)?)?;
     module.add_function(wrap_pyfunction!(emulator_start, module)?)?;
     module.add_function(wrap_pyfunction!(emulator_reset, module)?)?;
     module.add_function(wrap_pyfunction!(emulator_pause, module)?)?;

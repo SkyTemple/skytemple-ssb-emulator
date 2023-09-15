@@ -99,6 +99,13 @@ class EmulatorKeys:
     NO_KEY_SET = 0xFFFF
 
 
+def emulator_is_initialized() -> bool:
+    """
+    Checks if the emulator was initialized with `emulator_start` (from this thread).
+    """
+    ...
+
+
 def emulator_start():
     """
     Starts the emulator. After this the other functions will work correctly, but only
