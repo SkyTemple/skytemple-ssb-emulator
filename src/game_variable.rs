@@ -127,7 +127,9 @@ impl GameVariableManipulator {
         dbg_trace!("GameVariableManipulator::read - {var_id} - {read_offset}");
         self.with_var(emu, var_id, |with_var| {
             let Some((var, is_local)) = with_var else {
-                warn!("Could not determine correct value for variable {var_id}. Probably corruption.");
+                warn!(
+                    "Could not determine correct value for variable {var_id}. Probably corruption."
+                );
                 return ("?".to_string(), -1);
             };
             let Some(value_ptr) = self.get_value_ptr(is_local, var, srs) else {
@@ -195,7 +197,8 @@ impl GameVariableManipulator {
                             .u32()
                             .index_move(self.value_addrs.game_state_values);
                         // Possibly who the money belongs to? Main team, Special episode team, etc.
-                        let some_sort_of_offset = emu.memory().u8().index_move(misc_data_begin + 0x388);
+                        let some_sort_of_offset =
+                            emu.memory().u8().index_move(misc_data_begin + 0x388);
                         let address_carry_gold =
                             misc_data_begin + (some_sort_of_offset as u32 * 4) + 0x1394;
                         emu.memory().u32().index_move(address_carry_gold) as i32
