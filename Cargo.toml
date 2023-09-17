@@ -12,7 +12,7 @@ name = "skytemple_ssb_emulator"
 
 [dependencies]
 desmume-rs = "0.1"
-skytemple_rust = { git = "https://github.com/SkyTemple/skytemple-rust.git", default-features = false, features = ["script_var_table"] }
+skytemple_rust = { git = "https://github.com/SkyTemple/skytemple-rust.git", default-features = false, features = ["script_var_table"], tag = "1.6.0b1" }
 pyo3 = { version = "0.19", features = ["extension-module"] }
 pyo3-log = "0.8"
 log = "0.4"
