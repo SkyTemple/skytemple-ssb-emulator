@@ -11,7 +11,7 @@ jobs:
     strategy:
       max-parallel: 5
       matrix:
-        python-version: [ "3.8", "3.9", "3.10", "3.11" ]
+        python-version: [ "3.9", "3.10", "3.11". "3.12" ]
     steps:
       - uses: actions/checkout@v4
       - uses: theCapypara/mypy-check@rust-support
@@ -35,17 +35,17 @@ jobs:
       - name: Note version
         run: |
           echo "PACKAGE_VERSION=$(python3 -- ./setup.py --version)" >> $GITHUB_ENV
-      - name: Set up Python 3.8
+      - name: Set up Python 3.11
         uses: actions/setup-python@v4
         with:
-          python-version: 3.8
+          python-version: 311
       - name: Upgrade pip
         run: |
           python -m pip install --upgrade pip
       - name: Build Python wheels
         uses: RalfG/python-wheels-manylinux-build@v0.3.4-manylinux2014_x86_64
         with:
-          python-versions: 'cp38-cp38 cp39-cp39 cp310-cp310 cp311-cp311'
+          python-versions: 'cp39-cp39 cp310-cp310 cp311-cp311 cp312-cp312'
           pre-build-command: 'source ./build-manylinux.sh'
       - name: Upload wheels
         uses: actions/upload-artifact@v3
@@ -119,10 +119,10 @@ jobs:
     steps:
       - name: Download wheels
         uses: actions/download-artifact@v3
-      - name: Set up Python 3.8
+      - name: Set up Python 3.11
         uses: actions/setup-python@v4
         with:
-          python-version: 3.8
+          python-version: 3.11
       - name: Upgrade pip
         run: |
           python -m pip install --upgrade pip
