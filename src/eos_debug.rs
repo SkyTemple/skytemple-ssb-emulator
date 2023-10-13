@@ -28,7 +28,6 @@ use log::debug;
 use pyo3::exceptions::{PyIOError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::PySequence;
-use pyo3::AsPyPointer;
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::fs;
