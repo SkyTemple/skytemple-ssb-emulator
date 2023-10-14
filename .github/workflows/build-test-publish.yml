@@ -48,7 +48,7 @@ jobs:
           python-versions: 'cp38-cp38 cp39-cp39 cp310-cp310 cp311-cp311'
           pre-build-command: 'source ./build-manylinux.sh'
       - name: Upload wheels
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: wheels-linux
           path: dist/*.whl
@@ -105,7 +105,7 @@ jobs:
         run: |
           python setup.py bdist_wheel
       - name: Upload wheels
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: wheels-${{ matrix.os }}-py${{ matrix.python-version }}
           path: dist/*.whl
