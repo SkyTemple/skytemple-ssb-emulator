@@ -1,6 +1,7 @@
 #!/bin/bash
 set -ex
-
+yum install epel-release
+yum repolist
 yum install zlib zlib-devel libpcap libpcap-devel SDL2-devel agg-devel soundtouch-devel openal-soft-devel glib2-devel libtool autoconf automake meson -y
 
 # Posix C-Source required for some time constants.
