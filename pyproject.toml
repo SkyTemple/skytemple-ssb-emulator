@@ -1,2 +1,35 @@
 [build-system]
 requires = ["setuptools", "wheel", "setuptools-rust", "meson"]
+
+[project]
+name = "skytemple-ssb-emulator"
+version = "1.6.1"
+authors = [
+    {name = 'Marco "Capypara" Köpcke', email = "hello@capypara.de"},
+    # see About dialog or GitHub contributors list for additional people.
+]
+description = "Emulator runtime and bindings for skytemple-ssb-debugger"
+readme = "README.rst"
+requires-python = ">=3.9"
+keywords = ["rom-hacking", "game-modding", "skytemple", "gtk"]
+license = {text = "GPL-3.0-or-later"}
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "range-typed-integers >= 1.0.0",
+]
+
+[project.urls]
+Homepage = "https://skytemple.org"
+Announcements = "https://blog.skytemple.org"
+Documentation = "https://wiki.skytemple.org"
+Repository = "https://github.com/SkyTemple/skytemple-ssb-emulator.git"
+Issues = "https://github.com/SkyTemple/skytemple-ssb-emulator/issues"
+Discord = "https://discord.gg/skytemple"
