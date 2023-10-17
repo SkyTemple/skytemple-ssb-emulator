@@ -82,7 +82,7 @@ jobs:
         with:
           toolchain: stable
           override: true
-          target: "${{ matrix.os == 'windows-2019' && 'i686-pc-windows-msvc' || ( matrix.arch == 'aarch64' && 'aarch64-apple-darwin' || 'x86_64-apple-darwin') }}"
+          target: "${{ matrix.os == 'windows-2019' && 'i686-pc-windows-msvc' || ( matrix.arch == 'arm64' && 'aarch64-apple-darwin' || 'x86_64-apple-darwin') }}"
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
