@@ -21,78 +21,56 @@ jobs:
           requirements: '-r requirements.txt'
           python_version: '${{ matrix.python-version }}'
 
-  build_linux:
-    runs-on: ubuntu-latest
-    name: Wheel Linux
+  build:
+    runs-on: ${{ matrix.os }}
+    name: Build Wheels
     strategy:
-      max-parallel: 5
+      fail-fast: false
       matrix:
-        pythonver: [ "cp39", "cp310", "cp311", "cp312" ]
-        arch: ["x86_64"]#, "aarch64"]  # aarch64 build takes AGES so we skip it for now
+        include:
+          - os: ubuntu-latest
+            arch: x86_64
+          # very slow:
+          #- os: ubuntu-latest
+          #  arch: arm64
+          - os: macos-11
+            arch: x86_64
+          - os: macos-11
+            arch: arm64
+          - os: windows-2019
+            arch: x86
+          - os: windows-2019
+            arch: AMD64
     steps:
-      # For tags we assume the version in setup.py is correct!
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+      - name: Rewrite version for dev if not tag
+        if: "!startsWith(github.ref, 'refs/tags/')"
+        shell: bash
+        run: |
+          perl -i -pe "s/__version__\s*=\s*'(.*?)(\.rc.*|\.a.*|\.post.*)?'/__version__='\1.dev0+${GITHUB_SHA::8}'/" setup.py
+      - name: Note version
+        shell: bash
+        run: |
+          echo "PACKAGE_VERSION=$(python3 -- ./setup.py --version)" >> $GITHUB_ENV
       - name: Set up QEMU
         if: runner.os == 'Linux'
         uses: docker/setup-qemu-action@v3
         with:
           platforms: all
-      - name: Rewrite version for dev if not tag
-        if: "!startsWith(github.ref, 'refs/tags/')"
-        run: |
-          perl -i -pe "s/__version__\s*=\s*'(.*?)(\.rc.*|\.a.*|\.post.*)?'/__version__='\1.dev0+${GITHUB_SHA::8}'/" setup.py
-      - name: Note version
-        run: |
-          echo "PACKAGE_VERSION=$(python3 -- ./setup.py --version)" >> $GITHUB_ENV
-      - name: Install cibuildwheel
-        run: python -m pip install cibuildwheel
-      - name: Build wheels
-        run: python -m cibuildwheel --output-dir dist
-        env:
-          CIBW_BUILD: "${{ matrix.pythonver }}-manylinux*"
-          CIBW_BEFORE_ALL: "{package}/build-manylinux.sh"
-          CIBW_ENVIRONMENT: 'PATH="$PATH:$HOME/.cargo/bin" CXXFLAGS="-DFORCE_AVX512_0=1 -D_POSIX_C_SOURCE=199309L" CFLAGS="-D_POSIX_C_SOURCE=199309L"'
-          CIBW_ARCHS: ${{ matrix.arch }}
-      - name: Upload wheels
-        uses: actions/upload-artifact@v3
-        with:
-          name: wheels-linux
-          path: dist/*.whl
-  build_macos_windows:
-    runs-on: ${{ matrix.os }}
-    name: Mac/Win Wheel
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ macos-11, windows-2019 ]
-        python-version: [ '3.9', '3.10', '3.11', '3.12' ]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Rewrite version for dev if not tag
-        if: "!startsWith(github.ref, 'refs/tags/')"
-        shell: bash
-        run: |
-          perl -i -pe "s/__version__\s*=\s*'(.*?)(\.rc.*|\.a.*|\.post.*)?'/__version__='\1.dev0+${GITHUB_SHA::8}'/" setup.py
-      - name: Note version
-        shell: bash
-        run: |
-          echo "PACKAGE_VERSION=$(python3 -- ./setup.py --version)" >> $GITHUB_ENV
       - name: Setup Rust
         uses: actions-rs/toolchain@v1
+        if: runner.os != 'Linux'
         with:
           toolchain: stable
+          override: true
+          target: "${{ matrix.os == 'windows-2019' && 'i686-pc-windows-msvc' || ( matrix.arch == 'aarch64' && 'aarch64-apple-darwin' || 'x86_64-apple-darwin') }}"
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: ${{ matrix.python-version }}
-      - name: Upgrade pip, install dev dependencies
-        run: |
-          python -m pip install --upgrade pip wheel
-          python -m pip install -r dev-requirements.txt
-          python -m pip install -r requirements.txt
-
+          python-version: "3.11"
       # desmume build deps
       - name: Install MacOS build deps
         if: matrix.os == 'macos-11'
@@ -107,20 +85,24 @@ jobs:
         if: matrix.os == 'windows-2019'
         uses: microsoft/setup-msbuild@v1
       # end desume build deps
-
-      - name: Build Python wheels
-        run: |
-          python setup.py bdist_wheel
+      - name: Install cibuildwheel
+        run: python -m pip install cibuildwheel
+      - name: Build wheels
+        run: python -m cibuildwheel --output-dir dist
+        env:
+          CIBW_BUILD_LINUX: "${{ matrix.pythonver }}-manylinux*"
+          CIBW_BEFORE_ALL_LINUX: "curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain stable -y"
+          CIBW_ENVIRONMENT_LINUX: 'PATH="$PATH:$HOME/.cargo/bin"'
+          CIBW_ARCHS: ${{ matrix.arch }}
       - name: Upload wheels
         uses: actions/upload-artifact@v3
         with:
-          name: wheels-${{ matrix.os }}-py${{ matrix.python-version }}
+          name: wheels
           path: dist/*.whl
+
   deploy:
     if: startsWith(github.ref, 'refs/tags/')
-    needs:
-      - build_linux
-      - build_macos_windows
+    needs: build
     runs-on: ubuntu-latest
     name: Deploy wheels to PyPI
     steps:
@@ -139,4 +121,4 @@ jobs:
           TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
           TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
         run: |
-          twine upload wheels-linux/*manylinux*.whl wheels-windows*/*.whl wheels-macos*/*.whl
+          twine upload wheels/*.whl
