@@ -88,11 +88,6 @@ jobs:
         if: matrix.os == 'macos-11'
         run: |
           brew install coreutils gcc sdl2 meson glib
-      - name: "MacOS: Set env"
-        if: matrix.os == 'macos-11'
-        run: |
-          CC=gcc-10 >> $GITHUB_ENV
-          CXX=g++-10 >> $GITHUB_ENV
       - name: Add msbuild to PATH
         if: matrix.os == 'windows-2019'
         uses: microsoft/setup-msbuild@v1
@@ -105,6 +100,7 @@ jobs:
           CIBW_SKIP: "*musllinux*"
           CIBW_BEFORE_ALL_LINUX: "{package}/build-manylinux.sh"
           CIBW_ENVIRONMENT_LINUX: 'PATH="$PATH:$HOME/.cargo/bin" CXXFLAGS="-DFORCE_AVX512_0=1 -D_POSIX_C_SOURCE=199309L" CFLAGS="-D_POSIX_C_SOURCE=199309L"'
+          CIBW_ENVIRONMENT_MACOS: "CC=gcc-10 CXX=g++-10"
           CIBW_ARCHS: ${{ matrix.arch }}
       - name: Upload wheels
         uses: actions/upload-artifact@v3
