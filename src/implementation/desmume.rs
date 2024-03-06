@@ -24,7 +24,7 @@ use crate::eos_debug::{
 };
 use crate::game_variable::GameVariableManipulator;
 use crate::implementation::{SsbEmulator, SsbEmulatorCommandResult};
-use crate::printf::PrintfArg;
+use crate::printf::debug_print;
 use crate::pycallbacks::*;
 use crate::script_runtime::ScriptRuntime;
 use crate::state::{
@@ -37,7 +37,6 @@ use crossbeam_channel::{Receiver, Sender};
 use desmume_rs::mem::{IndexMove, IndexSet, Processor, Register};
 use desmume_rs::DeSmuME;
 use log::warn;
-use sprintf::{vsprintf, Printf};
 use std::borrow::Cow;
 use std::cell::{RefCell, UnsafeCell};
 use std::collections::HashMap;
@@ -1199,34 +1198,23 @@ fn _hook_debug_print_printfs(register_offset: u32) -> i32 {
             return 1;
         };
 
-        let ptr = emu.emu.memory().get_reg(
+        // `DebugPrint` is called with r0 = log level, r1 = format string, r2.. = variadic args.
+        // `DebugPrint0` is called with r0 = format string, r1.. = variadic args.
+        // `register_offset` is 0 for `DebugPrint0` and 1 for `DebugPrint` to account for the different register layouts.
+        let debug_string_ptr = emu.emu.memory().get_reg(
             Processor::Arm9,
             Register::try_from(register_offset).unwrap(),
         );
-        let dbg_cstring = emu.emu.memory().read_cstring(ptr);
+        let dbg_cstring = emu.emu.memory().read_cstring(debug_string_ptr);
         let dbg_string = dbg_cstring.to_string_lossy();
 
-        let args_count = dbg_string.chars().filter(|c| *c == '%').count() as u32;
-        let args = (0..args_count)
-            .map(|i| {
-                PrintfArg(
-                    &emu.emu,
-                    emu.emu.memory().get_reg(
-                        Processor::Arm9,
-                        Register::try_from(register_offset + i + 1).unwrap_or(Register::R15),
-                    ),
-                )
-            })
-            .collect::<Vec<_>>();
-        let args_dyn = args
-            .iter()
-            .map(|v| v as &dyn Printf)
-            .collect::<Vec<&dyn Printf>>();
-        let formatted = vsprintf(dbg_string.as_ref(), &args_dyn).unwrap_or_else(|err| {
-            format!(
+        let first_register_with_variadic_args = register_offset + 1;
+        let formatted = debug_print(&emu.emu, &dbg_string, first_register_with_variadic_args)
+            .unwrap_or_else(|err| {
+                format!(
                 "[SkyTemple] Format failed: Format string was: '{dbg_string}' - Error: '{err:?}'"
             )
-        });
+            });
 
         take_pycallback_and_send_hook!(
             HOOK_CB_DEBUG_PRINT,
