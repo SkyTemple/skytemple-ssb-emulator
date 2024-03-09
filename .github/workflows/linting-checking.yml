@@ -2,6 +2,9 @@ on: [ push ]
 
 name: Linting & Checking
 
+env:
+  _CI_ONLY__DISABLE_DESMUME_SYS_BUILD_SCRIPT: "1"
+
 jobs:
   clippy:
     name: Run Clippy
