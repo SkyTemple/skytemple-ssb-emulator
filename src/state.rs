@@ -56,15 +56,15 @@ pub static ERR_EMU_INIT: &str = "Emulator was not properly initialized.";
 // Local to the thread that called [`emulator_start`].
 thread_local! {
     /// The thread join handle of the thread that currently runs the emulator.
-    pub static EMULATOR_THREAD: RefCell<Option<JoinHandle<()>>> = RefCell::new(None);
+    pub static EMULATOR_THREAD: RefCell<Option<JoinHandle<()>>> = const { RefCell::new(None) };
     /// Sender channel for sending commands to the emulator thread
     /// that do not require acknowledgement.
-    static COMMAND_CHANNEL_SEND: RefCell<Option<Sender<EmulatorCommand>>> = RefCell::new(None);
+    static COMMAND_CHANNEL_SEND: RefCell<Option<Sender<EmulatorCommand>>> = const { RefCell::new(None) };
     /// Sender channel for sending commands to the emulator thread
     /// that do require acknowledgement. This channel has zero-capacity.
-    static COMMAND_CHANNEL_BLOCKING_SEND: RefCell<Option<BlockingSender<EmulatorCommand>>> = RefCell::new(None);
+    static COMMAND_CHANNEL_BLOCKING_SEND: RefCell<Option<BlockingSender<EmulatorCommand>>> = const { RefCell::new(None) };
     /// Receiver channel for hook events.
-    pub static HOOK_CHANNEL_RECEIVE: RefCell<Option<Receiver<HookExecute>>> = RefCell::new(None);
+    pub static HOOK_CHANNEL_RECEIVE: RefCell<Option<Receiver<HookExecute>>> = const { RefCell::new(None) };
 }
 // ---------------------------------------------------
 

@@ -116,16 +116,16 @@ impl Drop for SsbEmulatorDesmumeGlobal {
 thread_local! {
     /// Global emulator instance. Needed for exec callbacks.
     /// This is ONLY safe to use in hook callbacks and SsbEmulatorDesmume::new.
-    static SELF: UnsafeCell<Option<SsbEmulatorDesmume>> = UnsafeCell::new(None);
+    static SELF: UnsafeCell<Option<SsbEmulatorDesmume>> = const { UnsafeCell::new(None) };
     /// Hook sender. This needs to be thread-global for the hook functions.
-    static HOOK_SENDER: RefCell<Option<Rc<Sender<HookExecute>>>> = RefCell::new(None);
-    static HOOK_CB_SCRIPT_VARIABLE_SET: RefCell<Option<DebugRegisterScriptVariableSetCallback>> = RefCell::new(None);
-    static HOOK_CB_SCRIPT_DEBUG: RefCell<Option<DebugRegisterScriptDebugCallback>> = RefCell::new(None);
-    static HOOK_CB_SSB_LOAD: RefCell<Option<DebugRegisterSsbLoadCallback>> = RefCell::new(None);
-    static HOOK_CB_SSX_LOAD: RefCell<Option<DebugRegisterSsxLoadCallback>> = RefCell::new(None);
-    static HOOK_CB_TALK_LOAD: RefCell<Option<DebugRegisterTalkLoadCallback>> = RefCell::new(None);
-    static HOOK_CB_SET_DEBUG_FLAG: RefCell<Option<DebugRegisterDebugFlagCallback>> = RefCell::new(None);
-    static HOOK_CB_DEBUG_PRINT: RefCell<Option<DebugRegisterDebugPrintCallback>> = RefCell::new(None);
+    static HOOK_SENDER: RefCell<Option<Rc<Sender<HookExecute>>>> = const { RefCell::new(None) };
+    static HOOK_CB_SCRIPT_VARIABLE_SET: RefCell<Option<DebugRegisterScriptVariableSetCallback>> = const { RefCell::new(None) };
+    static HOOK_CB_SCRIPT_DEBUG: RefCell<Option<DebugRegisterScriptDebugCallback>> = const { RefCell::new(None) };
+    static HOOK_CB_SSB_LOAD: RefCell<Option<DebugRegisterSsbLoadCallback>> = const { RefCell::new(None) };
+    static HOOK_CB_SSX_LOAD: RefCell<Option<DebugRegisterSsxLoadCallback>> = const { RefCell::new(None) };
+    static HOOK_CB_TALK_LOAD: RefCell<Option<DebugRegisterTalkLoadCallback>> = const { RefCell::new(None) };
+    static HOOK_CB_SET_DEBUG_FLAG: RefCell<Option<DebugRegisterDebugFlagCallback>> = const { RefCell::new(None) };
+    static HOOK_CB_DEBUG_PRINT: RefCell<Option<DebugRegisterDebugPrintCallback>> = const { RefCell::new(None) };
 }
 
 impl SsbEmulatorDesmumeGlobal {
