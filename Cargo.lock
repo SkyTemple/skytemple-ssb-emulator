@@ -701,9 +701,9 @@ checksum = "e6ecd384b10a64542d77071bd64bd7b231f4ed5940fba55e98c3de13824cf3d7"
 
 [[package]]
 name = "sprintf"
-version = "0.2.1"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f2819cb5194dfe9e6d102f4519a9fb9dc7106d2879b71b4fd4d4677f1175bd39"
+checksum = "50e0732124cafd6bf2c9bc15f330fce49acb262beb57c877a2997898244e7f8a"
 dependencies = [
  "thiserror",
 ]
