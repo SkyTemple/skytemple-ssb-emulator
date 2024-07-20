@@ -86,6 +86,11 @@ jobs:
         if: startsWith(matrix.os, 'macos-')
         run: |
           brew install coreutils gcc sdl2 meson glib
+      - name: "MacOS: Set env"
+        if: startsWith(matrix.os, 'macos-')
+        run: |
+          CC=gcc-10 >> $GITHUB_ENV
+          CXX=g++-10 >> $GITHUB_ENV
       - name: Add msbuild to PATH
         if: matrix.os == 'windows-2019'
         uses: microsoft/setup-msbuild@v2

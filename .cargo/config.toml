@@ -1,0 +1,13 @@
+# Please don't ask me why we need to do this, this shouldn't be neccesary. Setuptools Rust should just do this.
+# I don't know.
+[target.x86_64-apple-darwin]
+rustflags = [
+    "-C", "link-arg=-undefined",
+    "-C", "link-arg=dynamic_lookup",
+]
+
+[target.aarch64-apple-darwin]
+rustflags = [
+    "-C", "link-arg=-undefined",
+    "-C", "link-arg=dynamic_lookup",
+]
