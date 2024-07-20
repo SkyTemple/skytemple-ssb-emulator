@@ -83,11 +83,11 @@ jobs:
           python-version: "3.12"
       # desmume build deps
       - name: Install MacOS build deps
-        if: matrix.os == 'macos-11'
+        if: matrix.os == 'macos-12'
         run: |
           brew install coreutils gcc sdl2 meson glib
       - name: "MacOS: Set env"
-        if: matrix.os == 'macos-11'
+        if: matrix.os == 'macos-12'
         run: |
           CC=gcc-10 >> $GITHUB_ENV
           CXX=g++-10 >> $GITHUB_ENV
