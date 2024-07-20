@@ -33,9 +33,9 @@ jobs:
           # very slow:
           #- os: ubuntu-latest
           #  arch: arm64
-          - os: macos-12
+          - os: macos-13
             arch: x86_64
-          - os: macos-12
+          - os: macos-14
             arch: arm64
           #- os: windows-2019
           #  arch: x86
@@ -83,11 +83,11 @@ jobs:
           python-version: "3.12"
       # desmume build deps
       - name: Install MacOS build deps
-        if: matrix.os == 'macos-12'
+        if: startsWith(matrix.os, 'macos-')
         run: |
           brew install coreutils gcc sdl2 meson glib
       - name: "MacOS: Set env"
-        if: matrix.os == 'macos-12'
+        if: startsWith(matrix.os, 'macos-')
         run: |
           CC=gcc-10 >> $GITHUB_ENV
           CXX=g++-10 >> $GITHUB_ENV
@@ -104,6 +104,7 @@ jobs:
           CIBW_BEFORE_ALL_LINUX: "{package}/build-manylinux.sh"
           CIBW_ENVIRONMENT_LINUX: 'PATH="$PATH:$HOME/.cargo/bin" CXXFLAGS="-DFORCE_AVX512_0=1 -D_POSIX_C_SOURCE=199309L" CFLAGS="-D_POSIX_C_SOURCE=199309L"'
           CIBW_ARCHS: ${{ matrix.arch }}
+          MACOSX_DEPLOYMENT_TARGET: "10.15"
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
