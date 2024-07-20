@@ -28,8 +28,8 @@ use std::sync::atomic::Ordering;
 use std::time::Duration;
 
 use crossbeam_channel::{Receiver, Sender};
-use desmume_rs::DeSmuME;
 use desmume_rs::mem::{IndexMove, IndexSet, Processor, Register};
+use desmume_rs::DeSmuME;
 use log::warn;
 use pyo3::Python;
 
@@ -44,9 +44,9 @@ use crate::printf::debug_print;
 use crate::pycallbacks::*;
 use crate::script_runtime::ScriptRuntime;
 use crate::state::{
-    BlockingReceiver, BOOST_MODE, BREAK, BREAKPOINT_MANAGER, DebugCommand, DISPLAY_BUFFER,
-    EMULATOR_IS_RUNNING, EMULATOR_JOYSTICK_SUPPORTS, EmulatorCommand, ERR_EMU_INIT,
-    HookExecute, TICK_COUNT, UNIONALL_LOAD_ADDRESS,
+    BlockingReceiver, DebugCommand, EmulatorCommand, HookExecute, BOOST_MODE, BREAK,
+    BREAKPOINT_MANAGER, DISPLAY_BUFFER, EMULATOR_IS_RUNNING, EMULATOR_JOYSTICK_SUPPORTS,
+    ERR_EMU_INIT, TICK_COUNT, UNIONALL_LOAD_ADDRESS,
 };
 use crate::stbytes::StBytes;
 

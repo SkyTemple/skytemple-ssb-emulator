@@ -32,8 +32,8 @@ use pyo3::types::PySequence;
 use crate::pycallbacks::*;
 use crate::script_runtime::ScriptRuntime;
 use crate::state::{
-    BOOST_MODE, BREAK, BREAKPOINT_MANAGER, command_channel_blocking_send, command_channel_send,
-    DebugCommand, EmulatorCommand, ERR_EMU_INIT, UNIONALL_LOAD_ADDRESS,
+    command_channel_blocking_send, command_channel_send, DebugCommand, EmulatorCommand, BOOST_MODE,
+    BREAK, BREAKPOINT_MANAGER, ERR_EMU_INIT, UNIONALL_LOAD_ADDRESS,
 };
 use crate::stbytes::StBytes;
 
@@ -1052,10 +1052,7 @@ impl BreakpointState {
 
         // Wakeup hooks
         let py = slfbrw.py();
-        let hooks = slfbrw
-            .release_hooks
-            .iter()
-            .map(|e| e.clone_ref(py));
+        let hooks = slfbrw.release_hooks.iter().map(|e| e.clone_ref(py));
         let slfpy = PyRefMut::as_ptr(&slfbrw);
         for hook in hooks {
             // SAFETY: This should be good because we are not accessing slfbrw anymore,
