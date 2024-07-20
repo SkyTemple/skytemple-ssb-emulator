@@ -33,7 +33,7 @@ jobs:
           # very slow:
           #- os: ubuntu-latest
           #  arch: arm64
-          - os: macos-13
+          - os: macos-12
             arch: x86_64
           - os: macos-14
             arch: arm64
@@ -86,11 +86,14 @@ jobs:
         if: startsWith(matrix.os, 'macos-')
         run: |
           brew install coreutils gcc sdl2 meson glib
-      - name: "MacOS: Set env"
-        if: startsWith(matrix.os, 'macos-')
+      - name: "MacOS 12: Set deployment target"
+        if: matrix.os == 'macos-12'
         run: |
-          CC=gcc-10 >> $GITHUB_ENV
-          CXX=g++-10 >> $GITHUB_ENV
+          echo "MACOSX_DEPLOYMENT_TARGET=12.0" >> $GITHUB_ENV
+      - name: "MacOS 14: Set deployment target"
+        if: matrix.os == 'macos-14'
+        run: |
+          echo "MACOSX_DEPLOYMENT_TARGET=14.0" >> $GITHUB_ENV
       - name: Add msbuild to PATH
         if: matrix.os == 'windows-2019'
         uses: microsoft/setup-msbuild@v2
@@ -104,7 +107,6 @@ jobs:
           CIBW_BEFORE_ALL_LINUX: "{package}/build-manylinux.sh"
           CIBW_ENVIRONMENT_LINUX: 'PATH="$PATH:$HOME/.cargo/bin" CXXFLAGS="-DFORCE_AVX512_0=1 -D_POSIX_C_SOURCE=199309L" CFLAGS="-D_POSIX_C_SOURCE=199309L"'
           CIBW_ARCHS: ${{ matrix.arch }}
-          MACOSX_DEPLOYMENT_TARGET: "10.15"
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
