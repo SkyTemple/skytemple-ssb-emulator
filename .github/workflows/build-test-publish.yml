@@ -2,7 +2,7 @@
 # Deploys to PyPi on "release".
 name: Build with and for Python
 
-on: [push, pull_request]
+on: [ push, pull_request ]
 
 jobs:
   typechecks:
@@ -33,10 +33,10 @@ jobs:
           # very slow:
           #- os: ubuntu-latest
           #  arch: arm64
-          - os: macos-11
+          - os: macos-12
             arch: x86_64
-          #- os: macos-11
-          #  arch: arm64
+          - os: macos-11
+            arch: arm64
           #- os: windows-2019
           #  arch: x86
           - os: windows-2019

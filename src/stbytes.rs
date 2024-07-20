@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 Capypara and the SkyTemple Contributors
+ * Copyright 2023-2024 Capypara and the SkyTemple Contributors
  *
  * This file is part of SkyTemple.
  *
@@ -17,9 +17,10 @@
  * along with SkyTemple.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+use std::borrow::Cow;
+
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
-use std::borrow::Cow;
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct StBytes<'a>(pub(crate) Cow<'a, [u8]>);
@@ -27,6 +28,6 @@ pub struct StBytes<'a>(pub(crate) Cow<'a, [u8]>);
 /// Export as bytes
 impl<'a> IntoPy<PyObject> for StBytes<'a> {
     fn into_py(self, py: Python) -> PyObject {
-        PyBytes::new(py, self.0.as_ref()).into()
+        PyBytes::new_bound(py, self.0.as_ref()).into()
     }
 }

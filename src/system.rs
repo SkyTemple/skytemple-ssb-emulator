@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 Capypara and the SkyTemple Contributors
+ * Copyright 2023-2024 Capypara and the SkyTemple Contributors
  *
  * This file is part of SkyTemple.
  *
@@ -17,16 +17,17 @@
  * along with SkyTemple.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+use std::ops::DerefMut;
+use std::sync::atomic::Ordering;
+
+use log::warn;
+use pyo3::pyfunction;
+
 use crate::game_variable::GameVariablesValueAddresses;
 use crate::state::{
     command_channel_blocking_send, command_channel_send, init, EmulatorCommand,
     EMULATOR_IS_RUNNING, EMULATOR_THREAD, TICK_COUNT,
 };
-use log::warn;
-
-use pyo3::pyfunction;
-use std::ops::DerefMut;
-use std::sync::atomic::Ordering;
 
 #[pyfunction]
 /// Checks if the emulator was initialized with `emulator_start` (from this thread).

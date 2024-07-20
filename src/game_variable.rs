@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 Capypara and the SkyTemple Contributors
+ * Copyright 2023-2024 Capypara and the SkyTemple Contributors
  *
  * This file is part of SkyTemple.
  *
@@ -17,16 +17,18 @@
  * along with SkyTemple.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use crate::script_runtime::ScriptRuntime;
+use std::cell::RefCell;
+
 use desmume_rs::mem::{IndexMove, IndexSet};
 use desmume_rs::DeSmuME;
 use log::warn;
+use pyo3::PyResult;
 use skytemple_rust::st_script_var_table::{
     ScriptVariableDefinition, ScriptVariableTables, ScriptVariableType, COUNT_GLOBAL_VARS,
     COUNT_LOCAL_VARS, DEFINITION_STRUCT_SIZE,
 };
-use skytemple_rust::PyResult;
-use std::cell::RefCell;
+
+use crate::script_runtime::ScriptRuntime;
 
 #[derive(Debug)]
 pub struct GameVariablesValueAddresses {
