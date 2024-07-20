@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 Capypara and the SkyTemple Contributors
+ * Copyright 2023-2024 Capypara and the SkyTemple Contributors
  *
  * This file is part of SkyTemple.
  *
@@ -17,14 +17,16 @@
  * along with SkyTemple.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use crate::state::DISPLAY_BUFFER;
-use crate::stbytes::StBytes;
-use crate::SCREEN_PIXEL_SIZE;
-use pyo3::prelude::*;
 use std::borrow::Cow;
 use std::cell::Cell;
 use std::pin::Pin;
 use std::ptr;
+
+use pyo3::prelude::*;
+
+use crate::state::DISPLAY_BUFFER;
+use crate::stbytes::StBytes;
+use crate::SCREEN_PIXEL_SIZE;
 
 pub const DISPLAY_BUFFER_SIZE: usize = SCREEN_PIXEL_SIZE * 2 * 4;
 

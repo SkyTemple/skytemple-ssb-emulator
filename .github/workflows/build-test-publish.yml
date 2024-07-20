@@ -2,7 +2,7 @@
 # Deploys to PyPi on "release".
 name: Build with and for Python
 
-on: [push, pull_request]
+on: [ push, pull_request ]
 
 jobs:
   typechecks:
@@ -33,10 +33,10 @@ jobs:
           # very slow:
           #- os: ubuntu-latest
           #  arch: arm64
-          - os: macos-11
+          - os: macos-12
             arch: x86_64
-          #- os: macos-11
-          #  arch: arm64
+          - os: macos-14
+            arch: arm64
           #- os: windows-2019
           #  arch: x86
           - os: windows-2019
@@ -83,14 +83,17 @@ jobs:
           python-version: "3.12"
       # desmume build deps
       - name: Install MacOS build deps
-        if: matrix.os == 'macos-11'
+        if: startsWith(matrix.os, 'macos-')
         run: |
           brew install coreutils gcc sdl2 meson glib
-      - name: "MacOS: Set env"
-        if: matrix.os == 'macos-11'
+      - name: "MacOS 12: Set deployment target"
+        if: matrix.os == 'macos-12'
         run: |
-          CC=gcc-10 >> $GITHUB_ENV
-          CXX=g++-10 >> $GITHUB_ENV
+          echo "MACOSX_DEPLOYMENT_TARGET=12.0" >> $GITHUB_ENV
+      - name: "MacOS 14: Set deployment target"
+        if: matrix.os == 'macos-14'
+        run: |
+          echo "MACOSX_DEPLOYMENT_TARGET=14.0" >> $GITHUB_ENV
       - name: Add msbuild to PATH
         if: matrix.os == 'windows-2019'
         uses: microsoft/setup-msbuild@v2

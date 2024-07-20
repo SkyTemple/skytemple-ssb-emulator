@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 Capypara and the SkyTemple Contributors
+ * Copyright 2023-2024 Capypara and the SkyTemple Contributors
  *
  * This file is part of SkyTemple.
  *
@@ -17,6 +17,22 @@
  * along with SkyTemple.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+use std::borrow::Cow;
+use std::cell::{RefCell, UnsafeCell};
+use std::collections::HashMap;
+use std::ffi::CString;
+use std::mem;
+use std::ops::{Deref, DerefMut, Range};
+use std::rc::Rc;
+use std::sync::atomic::Ordering;
+use std::time::Duration;
+
+use crossbeam_channel::{Receiver, Sender};
+use desmume_rs::mem::{IndexMove, IndexSet, Processor, Register};
+use desmume_rs::DeSmuME;
+use log::warn;
+use pyo3::Python;
+
 use crate::alloc_table::EmulatorMemTable;
 use crate::eos_debug::{
     BreakpointInfo, BreakpointState, BreakpointStateType, EmulatorLogType, MAX_SSB, MAX_SSX,
@@ -33,19 +49,6 @@ use crate::state::{
     ERR_EMU_INIT, TICK_COUNT, UNIONALL_LOAD_ADDRESS,
 };
 use crate::stbytes::StBytes;
-use crossbeam_channel::{Receiver, Sender};
-use desmume_rs::mem::{IndexMove, IndexSet, Processor, Register};
-use desmume_rs::DeSmuME;
-use log::warn;
-use std::borrow::Cow;
-use std::cell::{RefCell, UnsafeCell};
-use std::collections::HashMap;
-use std::ffi::CString;
-use std::mem;
-use std::ops::{Deref, DerefMut, Range};
-use std::rc::Rc;
-use std::sync::atomic::Ordering;
-use std::time::Duration;
 
 const NB_DEBUG_FLAGS_1: usize = 0xC;
 const NB_DEBUG_FLAGS_2: usize = 0x10;
@@ -726,7 +729,9 @@ impl SsbEmulatorDesmume {
                                 }
                                 values.insert(var.id, var_values);
                             }
-                            send_hook(HookExecute::SyncGlobalVars(cb.clone(), values));
+                            Python::with_gil(|py| {
+                                send_hook(HookExecute::SyncGlobalVars(cb.clone_ref(py), values));
+                            })
                         }
                     })
                 }
@@ -816,12 +821,14 @@ fn send_hook(msg: HookExecute) {
 
 macro_rules! take_pycallback_and_send_hook {
     ($global:expr, $cb_name:pat, $hook_execute:expr) => {
-        $global.with(|cb_refcell| {
-            let cb_borrowed = cb_refcell.borrow();
-            if let Some(cb_asref) = cb_borrowed.as_ref() {
-                let $cb_name = cb_asref.clone();
-                send_hook($hook_execute);
-            }
+        Python::with_gil(|py| {
+            $global.with(|cb_refcell| {
+                let cb_borrowed = cb_refcell.borrow();
+                if let Some(cb_asref) = cb_borrowed.as_ref() {
+                    let $cb_name = cb_asref.clone_ref(py);
+                    send_hook($hook_execute);
+                }
+            })
         });
     };
 }
@@ -1424,7 +1431,9 @@ extern "C" fn hook_exec_ground(addr: u32, _size: i32) -> i32 {
 
         if overlay11_loaded(emu) {
             if let Some(cb) = emu.exec_ground_hooks.get(&addr) {
-                send_hook(HookExecute::ExecGround(cb.clone()));
+                Python::with_gil(|py| {
+                    send_hook(HookExecute::ExecGround(cb.clone_ref(py)));
+                })
             } else {
                 panic!("Did not find registered ground callback: {addr}");
             }

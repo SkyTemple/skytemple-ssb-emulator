@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 Capypara and the SkyTemple Contributors
+ * Copyright 2023-2024 Capypara and the SkyTemple Contributors
  *
  * This file is part of SkyTemple.
  *
@@ -16,6 +16,22 @@
  * You should have received a copy of the GNU General Public License
  * along with SkyTemple.  If not, see <https://www.gnu.org/licenses/>.
  */
+
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::ops::Range;
+use std::panic::{catch_unwind, panic_any, AssertUnwindSafe, UnwindSafe};
+use std::pin::Pin;
+use std::rc::Rc;
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
+use std::sync::{Arc, Condvar, Mutex};
+use std::thread;
+use std::thread::{sleep, JoinHandle};
+use std::time::{Duration, Instant};
+
+use crossbeam_channel::{bounded, unbounded, Receiver, Sender};
+use lazy_static::lazy_static;
+use log::warn;
 
 use crate::alloc_table::EmulatorMemTable;
 use crate::display_buffer::DisplayBuffer;
@@ -35,20 +51,6 @@ use crate::pycallbacks::{
     JoyGetNumberConnectedCallback, JoyGetSetKeyCallback, ReadMemCallback,
 };
 use crate::stbytes::StBytes;
-use crossbeam_channel::{bounded, unbounded, Receiver, Sender};
-use lazy_static::lazy_static;
-use log::warn;
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::ops::Range;
-use std::panic::{catch_unwind, panic_any, AssertUnwindSafe, UnwindSafe};
-use std::pin::Pin;
-use std::rc::Rc;
-use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
-use std::sync::{Arc, Condvar, Mutex};
-use std::thread;
-use std::thread::{sleep, JoinHandle};
-use std::time::{Duration, Instant};
 
 pub static ERR_EMU_INIT: &str = "Emulator was not properly initialized.";
 

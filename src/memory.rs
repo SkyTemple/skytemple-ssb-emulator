@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 Capypara and the SkyTemple Contributors
+ * Copyright 2023-2024 Capypara and the SkyTemple Contributors
  *
  * This file is part of SkyTemple.
  *
@@ -17,9 +17,10 @@
  * along with SkyTemple.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+use pyo3::prelude::*;
+
 use crate::pycallbacks::ReadMemCallback;
 use crate::state::{command_channel_send, EmulatorCommand};
-use pyo3::prelude::*;
 
 #[pyfunction]
 /// Read a chunk of memory [address_start,address_end).

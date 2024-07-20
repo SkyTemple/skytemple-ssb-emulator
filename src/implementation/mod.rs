@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 Capypara and the SkyTemple Contributors
+ * Copyright 2023-2024 Capypara and the SkyTemple Contributors
  *
  * This file is part of SkyTemple.
  *
@@ -17,9 +17,11 @@
  * along with SkyTemple.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use crate::state::{BlockingReceiver, EmulatorCommand, HookExecute};
-use crossbeam_channel::{Receiver, Sender};
 use std::rc::Rc;
+
+use crossbeam_channel::{Receiver, Sender};
+
+use crate::state::{BlockingReceiver, EmulatorCommand, HookExecute};
 
 pub mod desmume;
 

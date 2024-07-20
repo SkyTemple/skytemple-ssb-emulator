@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 Capypara and the SkyTemple Contributors
+ * Copyright 2023-2024 Capypara and the SkyTemple Contributors
  *
  * This file is part of SkyTemple.
  *
@@ -17,13 +17,14 @@
  * along with SkyTemple.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use crate::pycallbacks::EmulatorMemTableEntryCallback;
-use crate::state::{command_channel_send, DebugCommand, EmulatorCommand};
 use desmume_rs::mem::IndexMove;
 use desmume_rs::DeSmuME;
 use pyo3::prelude::*;
 
-#[pyclass(module = "ssb_emulator")]
+use crate::pycallbacks::EmulatorMemTableEntryCallback;
+use crate::state::{command_channel_send, DebugCommand, EmulatorCommand};
+
+#[pyclass(module = "ssb_emulator", eq, eq_int)]
 #[repr(u32)]
 #[derive(Debug, Clone, Copy, PartialEq)]
 /// Type of memory allocation.

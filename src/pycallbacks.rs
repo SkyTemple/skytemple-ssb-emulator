@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 Capypara and the SkyTemple Contributors
+ * Copyright 2023-2024 Capypara and the SkyTemple Contributors
  *
  * This file is part of SkyTemple.
  *
@@ -19,70 +19,99 @@
 
 use pyo3::PyObject;
 
-#[derive(Debug, Clone)]
-/// Python callable with signature def _(mem: bytes).
-pub struct ReadMemCallback(pub PyObject);
+macro_rules! def_callback {
+    ($name:ident, $doc:literal) => {
+        #[derive(Debug)]
+        #[doc = $doc]
+        pub struct $name(pub PyObject);
+        impl $name {
+            #[allow(unused)]
+            #[inline(always)]
+            pub fn clone_ref(&self, py: ::pyo3::Python) -> Self {
+                Self(self.0.clone_ref(py))
+            }
+        }
+    };
+}
 
-#[derive(Debug, Clone)]
-/// Python callable with signature def _(number: int).
-pub struct JoyGetNumberConnectedCallback(pub PyObject);
+def_callback!(
+    ReadMemCallback,
+    "Python callable with signature def _(mem: bytes)."
+);
 
-#[derive(Debug, Clone)]
-/// Python callable with signature def _(keycode: int).
-pub struct JoyGetSetKeyCallback(pub PyObject);
+def_callback!(
+    JoyGetNumberConnectedCallback,
+    "Python callable with signature def _(number: int)."
+);
 
-#[derive(Debug, Clone)]
-/// Python callable with signature def _(var_id: int, var_offset: int, value: int).
-pub struct DebugRegisterScriptVariableSetCallback(pub PyObject);
+def_callback!(
+    JoyGetSetKeyCallback,
+    "Python callable with signature def _(keycode: int)."
+);
 
-#[derive(Debug, Clone)]
-/// Python callable with signature def _(break_state: Optional[BreakpointState], script_runtime_struct_mem: bytes, script_target_slot_id: u32, current_opcode: u32).
-pub struct DebugRegisterScriptDebugCallback(pub PyObject);
+def_callback!(
+    DebugRegisterScriptVariableSetCallback,
+    "Python callable with signature def _(var_id: int, var_offset: int, value: int)."
+);
 
-#[derive(Debug, Clone)]
-/// Python callable with signature def _(type: EmulatorLogType, msg: str).
-pub struct DebugRegisterDebugPrintCallback(pub PyObject);
+def_callback!(DebugRegisterScriptDebugCallback, "Python callable with signature def _(break_state: Optional[BreakpointState], script_runtime_struct_mem: bytes, script_target_slot_id: u32, current_opcode: u32).");
 
-#[derive(Debug, Clone)]
-/// Python callable with signature def _(var_id: int, flag_id: int, value: int).
-pub struct DebugRegisterDebugFlagCallback(pub PyObject);
+def_callback!(
+    DebugRegisterDebugPrintCallback,
+    "Python callable with signature def _(type: EmulatorLogType, msg: str)."
+);
 
-#[derive(Debug, Clone)]
-/// Python callable with signature def _().
-pub struct DebugRegisterExecGroundCallback(pub PyObject);
+def_callback!(
+    DebugRegisterDebugFlagCallback,
+    "Python callable with signature def _(var_id: int, flag_id: int, value: int)."
+);
 
-#[derive(Debug, Clone)]
-/// Python callable with signature def _(name: str).
-pub struct DebugRegisterSsbLoadCallback(pub PyObject);
+def_callback!(
+    DebugRegisterExecGroundCallback,
+    "Python callable with signature def _()."
+);
 
-#[derive(Debug, Clone)]
-/// Python callable with signature def _(hanger: int, name: str).
-pub struct DebugRegisterSsxLoadCallback(pub PyObject);
+def_callback!(
+    DebugRegisterSsbLoadCallback,
+    "Python callable with signature def _(name: str)."
+);
 
-#[derive(Debug, Clone)]
-/// Python callable with signature def _(hanger: int).
-pub struct DebugRegisterTalkLoadCallback(pub PyObject);
+def_callback!(
+    DebugRegisterSsxLoadCallback,
+    "Python callable with signature def _(hanger: int, name: str)."
+);
 
-#[derive(Debug, Clone)]
-/// Python callable with signature def _(vars: Mapping[int, Sequence[int]]).
-pub struct DebugSyncGlobalVarsCallback(pub PyObject);
+def_callback!(
+    DebugRegisterTalkLoadCallback,
+    "Python callable with signature def _(hanger: int)."
+);
 
-#[derive(Debug, Clone)]
-/// Python callable with signature def _(vars: Sequence[int]).
-pub struct DebugSyncLocalVarsCallback(pub PyObject);
+def_callback!(
+    DebugSyncGlobalVarsCallback,
+    "Python callable with signature def _(vars: Mapping[int, Sequence[int]])."
+);
 
-#[derive(Debug, Clone)]
-/// Python callable with signature def _(tables: Sequence[EmulatorMemTable]).
-pub struct DebugSyncMemTablesCallback(pub PyObject);
+def_callback!(
+    DebugSyncLocalVarsCallback,
+    "Python callable with signature def _(vars: Sequence[int])."
+);
 
-#[derive(Debug, Clone)]
-/// Python callable with signature def _(ssb_filename: str, opcode_offset: int).
-pub struct BreakpointChangeCallback(pub PyObject);
+def_callback!(
+    DebugSyncMemTablesCallback,
+    "Python callable with signature def _(tables: Sequence[EmulatorMemTable])."
+);
 
-#[derive(Debug, Clone)]
-/// Python callable with signature def _(state: BreakpointState).
-pub struct BreakpointStateReleaseCallback(pub PyObject);
+def_callback!(
+    BreakpointChangeCallback,
+    "Python callable with signature def _(ssb_filename: str, opcode_offset: int)."
+);
 
-#[derive(Debug, Clone)]
-/// Python callable with signature def _(content: bytes).
-pub struct EmulatorMemTableEntryCallback(pub PyObject);
+def_callback!(
+    BreakpointStateReleaseCallback,
+    "Python callable with signature def _(state: BreakpointState)."
+);
+
+def_callback!(
+    EmulatorMemTableEntryCallback,
+    "Python callable with signature def _(content: bytes)."
+);

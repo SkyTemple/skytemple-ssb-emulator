@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 Capypara and the SkyTemple Contributors
+ * Copyright 2023-2024 Capypara and the SkyTemple Contributors
  *
  * This file is part of SkyTemple.
  *
@@ -16,11 +16,12 @@
  * You should have received a copy of the GNU General Public License
  * along with SkyTemple.  If not, see <https://www.gnu.org/licenses/>.
  */
-use crate::state::{command_channel_send, EmulatorCommand};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
-#[pyclass(module = "ssb_emulator")]
+use crate::state::{command_channel_send, EmulatorCommand};
+
+#[pyclass(module = "ssb_emulator", eq, eq_int)]
 #[repr(u32)]
 #[derive(Debug, Clone, Copy, PartialEq)]
 /// Type of memory allocation.

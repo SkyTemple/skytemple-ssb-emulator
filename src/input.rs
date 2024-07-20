@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 Capypara and the SkyTemple Contributors
+ * Copyright 2023-2024 Capypara and the SkyTemple Contributors
  *
  * This file is part of SkyTemple.
  *
@@ -17,17 +17,19 @@
  * along with SkyTemple.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+use std::cell::RefCell;
+use std::sync::atomic::Ordering;
+
+use desmume_rs::input::keymask;
+use pyo3::exceptions::PyValueError;
+use pyo3::prelude::*;
+use pyo3::types::PySequence;
+
 use crate::pycallbacks::{JoyGetNumberConnectedCallback, JoyGetSetKeyCallback};
 use crate::state::{
     command_channel_blocking_send, command_channel_send, EmulatorCommand,
     EMULATOR_JOYSTICK_SUPPORTS,
 };
-use desmume_rs::input::keymask;
-use pyo3::exceptions::PyValueError;
-use pyo3::prelude::*;
-use pyo3::types::PySequence;
-use std::cell::RefCell;
-use std::sync::atomic::Ordering;
 
 pub const NB_KEYS: u8 = desmume_rs::input::NB_KEYS;
 pub type EmulatorKeys = desmume_rs::input::Key;
@@ -89,7 +91,7 @@ pub fn emulator_joy_init() {
     command_channel_blocking_send(EmulatorCommand::JoyInit)
 }
 
-fn read_cfg(value: &PySequence) -> PyResult<[i32; 15]> {
+fn read_cfg(value: Bound<PySequence>) -> PyResult<[i32; 15]> {
     let value_vec = value
         .iter()?
         .map(|v| v.and_then(|vv| vv.extract()))
@@ -103,11 +105,12 @@ fn read_cfg(value: &PySequence) -> PyResult<[i32; 15]> {
 }
 
 #[pyfunction]
+#[pyo3(signature = (keyboard_cfg=None, joypad_cfg=None))]
 /// Change the control settings for keyboard and joystick to the values provided.
 /// If any of the values is None, the controls are not changed.
 pub fn emulator_load_controls(
-    keyboard_cfg: Option<&PySequence>,
-    joypad_cfg: Option<&PySequence>,
+    keyboard_cfg: Option<Bound<PySequence>>,
+    joypad_cfg: Option<Bound<PySequence>>,
 ) -> PyResult<()> {
     dbg_trace!("emulator_load_controls");
     EMULATOR_CONTROLS.with(|controls| {
@@ -140,7 +143,7 @@ pub fn emulator_get_jscfg(py: Python) -> PyObject {
 
 #[pyfunction]
 /// Sets the currently active keyboard configuration.
-pub fn emulator_set_kbcfg(value: &PySequence) -> PyResult<()> {
+pub fn emulator_set_kbcfg(value: Bound<PySequence>) -> PyResult<()> {
     dbg_trace!("emulator_set_kbcfg");
     EMULATOR_CONTROLS.with(|controls| {
         controls.borrow_mut().kbcfg = read_cfg(value)?;
@@ -154,7 +157,7 @@ pub fn emulator_set_kbcfg(value: &PySequence) -> PyResult<()> {
 /// NOTE: If `propagate_to_emulator` is false, this does NOT forward the information to the
 /// emulator's internals that control the joystick/gamepad.
 /// Useful when also using emulator_joy_get_set_key.
-pub fn emulator_set_jscfg(value: &PySequence, propagate_to_emulator: bool) -> PyResult<()> {
+pub fn emulator_set_jscfg(value: Bound<PySequence>, propagate_to_emulator: bool) -> PyResult<()> {
     dbg_trace!("emulator_set_jscfg");
     EMULATOR_CONTROLS.with(|controls| {
         controls.borrow_mut().jscfg = read_cfg(value)?;

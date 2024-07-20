@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 Capypara and the SkyTemple Contributors
+ * Copyright 2023-2024 Capypara and the SkyTemple Contributors
  *
  * This file is part of SkyTemple.
  *
@@ -17,12 +17,14 @@
  * along with SkyTemple.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+use std::borrow::Cow;
+
+use pyo3::prelude::*;
+
 use crate::state::{
     command_channel_blocking_send, EmulatorCommand, HookExecute, ERR_EMU_INIT, HOOK_CHANNEL_RECEIVE,
 };
 use crate::stbytes::StBytes;
-use pyo3::prelude::*;
-use std::borrow::Cow;
 
 #[pyfunction]
 /// Polls new emulator events from the emulator thread and runs all pending hooks.
@@ -37,19 +39,19 @@ pub fn emulator_poll(py: Python, error_consumer: PyObject) -> PyResult<bool> {
             dbg_trace!("emulator_poll - processing {event:?}");
             match event {
                 HookExecute::Error(err_msg) => {
-                    error_consumer.call(py, (err_msg,), None)?;
+                    error_consumer.call_bound(py, (err_msg,), None)?;
                 }
                 HookExecute::ReadMemResult(val, cb) => {
-                    cb.0.call(py, (StBytes(Cow::Owned(val)),), None)?;
+                    cb.0.call_bound(py, (StBytes(Cow::Owned(val)),), None)?;
                 }
                 HookExecute::JoyGetNumberConnected(val, cb) => {
-                    cb.0.call(py, (val,), None)?;
+                    cb.0.call_bound(py, (val,), None)?;
                 }
                 HookExecute::JoyGetSetKey(val, cb) => {
-                    cb.0.call(py, (val,), None)?;
+                    cb.0.call_bound(py, (val,), None)?;
                 }
                 HookExecute::DebugScriptVariableSet(cb, var_id, var_offset, var_value) => {
-                    cb.0.call(py, (var_id, var_offset, var_value), None)?;
+                    cb.0.call_bound(py, (var_id, var_offset, var_value), None)?;
                 }
                 HookExecute::DebugScriptDebug {
                     cb,
@@ -58,7 +60,7 @@ pub fn emulator_poll(py: Python, error_consumer: PyObject) -> PyResult<bool> {
                     current_opcode,
                     script_runtime_struct_mem,
                 } => {
-                    cb.0.call(
+                    cb.0.call_bound(
                         py,
                         (
                             breakpoint_state,
@@ -70,34 +72,34 @@ pub fn emulator_poll(py: Python, error_consumer: PyObject) -> PyResult<bool> {
                     )?;
                 }
                 HookExecute::DebugSsbLoad(cb, name) => {
-                    cb.0.call(py, (name,), None)?;
+                    cb.0.call_bound(py, (name,), None)?;
                 }
                 HookExecute::DebugSsxLoad(cb, hanger, name) => {
-                    cb.0.call(py, (hanger, name), None)?;
+                    cb.0.call_bound(py, (hanger, name), None)?;
                 }
                 HookExecute::DebugTalkLoad(cb, hanger) => {
-                    cb.0.call(py, (hanger,), None)?;
+                    cb.0.call_bound(py, (hanger,), None)?;
                 }
                 HookExecute::DebugPrint(cb, ty, msg) => {
-                    cb.0.call(py, (ty, msg), None)?;
+                    cb.0.call_bound(py, (ty, msg), None)?;
                 }
                 HookExecute::DebugSetFlag(cb, var_id, flag_id, value) => {
-                    cb.0.call(py, (var_id, flag_id, value), None)?;
+                    cb.0.call_bound(py, (var_id, flag_id, value), None)?;
                 }
                 HookExecute::ExecGround(cb) => {
                     cb.0.call0(py)?;
                 }
                 HookExecute::SyncGlobalVars(cb, values) => {
-                    cb.0.call(py, (values,), None)?;
+                    cb.0.call_bound(py, (values,), None)?;
                 }
                 HookExecute::SyncLocalVars(cb, values) => {
-                    cb.0.call(py, (values,), None)?;
+                    cb.0.call_bound(py, (values,), None)?;
                 }
                 HookExecute::SyncMemTables(cb, values) => {
-                    cb.0.call(py, (values,), None)?;
+                    cb.0.call_bound(py, (values,), None)?;
                 }
                 HookExecute::DumpMemTableEntry(cb, by) => {
-                    cb.0.call(py, (by,), None)?;
+                    cb.0.call_bound(py, (by,), None)?;
                 }
             }
             // TODO: Is this a bug in pyo3? If we try to process multiple of the same

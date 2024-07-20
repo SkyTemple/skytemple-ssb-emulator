@@ -1,6 +1,6 @@
 //! Rust implementation of ssb-debugger ScriptRuntimeStruct.
 /*
- * Copyright 2023 Capypara and the SkyTemple Contributors
+ * Copyright 2023-2024 Capypara and the SkyTemple Contributors
  *
  * This file is part of SkyTemple.
  *
@@ -18,8 +18,9 @@
  * along with SkyTemple.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use crate::eos_debug::{ScriptTargetType, MAX_SSB};
 use byteorder::{LittleEndian, ReadBytesExt};
+
+use crate::eos_debug::{ScriptTargetType, MAX_SSB};
 
 /// State of the script engine for a hanger.
 #[derive(Debug, Clone)]
