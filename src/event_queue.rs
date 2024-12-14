@@ -39,19 +39,19 @@ pub fn emulator_poll(py: Python, error_consumer: PyObject) -> PyResult<bool> {
             dbg_trace!("emulator_poll - processing {event:?}");
             match event {
                 HookExecute::Error(err_msg) => {
-                    error_consumer.call_bound(py, (err_msg,), None)?;
+                    error_consumer.call(py, (err_msg,), None)?;
                 }
                 HookExecute::ReadMemResult(val, cb) => {
-                    cb.0.call_bound(py, (StBytes(Cow::Owned(val)),), None)?;
+                    cb.0.call(py, (StBytes(Cow::Owned(val)),), None)?;
                 }
                 HookExecute::JoyGetNumberConnected(val, cb) => {
-                    cb.0.call_bound(py, (val,), None)?;
+                    cb.0.call(py, (val,), None)?;
                 }
                 HookExecute::JoyGetSetKey(val, cb) => {
-                    cb.0.call_bound(py, (val,), None)?;
+                    cb.0.call(py, (val,), None)?;
                 }
                 HookExecute::DebugScriptVariableSet(cb, var_id, var_offset, var_value) => {
-                    cb.0.call_bound(py, (var_id, var_offset, var_value), None)?;
+                    cb.0.call(py, (var_id, var_offset, var_value), None)?;
                 }
                 HookExecute::DebugScriptDebug {
                     cb,
@@ -60,7 +60,7 @@ pub fn emulator_poll(py: Python, error_consumer: PyObject) -> PyResult<bool> {
                     current_opcode,
                     script_runtime_struct_mem,
                 } => {
-                    cb.0.call_bound(
+                    cb.0.call(
                         py,
                         (
                             breakpoint_state,
@@ -72,34 +72,34 @@ pub fn emulator_poll(py: Python, error_consumer: PyObject) -> PyResult<bool> {
                     )?;
                 }
                 HookExecute::DebugSsbLoad(cb, name) => {
-                    cb.0.call_bound(py, (name,), None)?;
+                    cb.0.call(py, (name,), None)?;
                 }
                 HookExecute::DebugSsxLoad(cb, hanger, name) => {
-                    cb.0.call_bound(py, (hanger, name), None)?;
+                    cb.0.call(py, (hanger, name), None)?;
                 }
                 HookExecute::DebugTalkLoad(cb, hanger) => {
-                    cb.0.call_bound(py, (hanger,), None)?;
+                    cb.0.call(py, (hanger,), None)?;
                 }
                 HookExecute::DebugPrint(cb, ty, msg) => {
-                    cb.0.call_bound(py, (ty, msg), None)?;
+                    cb.0.call(py, (ty, msg), None)?;
                 }
                 HookExecute::DebugSetFlag(cb, var_id, flag_id, value) => {
-                    cb.0.call_bound(py, (var_id, flag_id, value), None)?;
+                    cb.0.call(py, (var_id, flag_id, value), None)?;
                 }
                 HookExecute::ExecGround(cb) => {
                     cb.0.call0(py)?;
                 }
                 HookExecute::SyncGlobalVars(cb, values) => {
-                    cb.0.call_bound(py, (values,), None)?;
+                    cb.0.call(py, (values,), None)?;
                 }
                 HookExecute::SyncLocalVars(cb, values) => {
-                    cb.0.call_bound(py, (values,), None)?;
+                    cb.0.call(py, (values,), None)?;
                 }
                 HookExecute::SyncMemTables(cb, values) => {
-                    cb.0.call_bound(py, (values,), None)?;
+                    cb.0.call(py, (values,), None)?;
                 }
                 HookExecute::DumpMemTableEntry(cb, by) => {
-                    cb.0.call_bound(py, (by,), None)?;
+                    cb.0.call(py, (by,), None)?;
                 }
             }
             // TODO: Is this a bug in pyo3? If we try to process multiple of the same

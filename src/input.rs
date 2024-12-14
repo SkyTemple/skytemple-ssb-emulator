@@ -24,6 +24,7 @@ use desmume_rs::input::keymask;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PySequence;
+use pyo3::IntoPyObjectExt;
 
 use crate::pycallbacks::{JoyGetNumberConnectedCallback, JoyGetSetKeyCallback};
 use crate::state::{
@@ -93,7 +94,7 @@ pub fn emulator_joy_init() {
 
 fn read_cfg(value: Bound<PySequence>) -> PyResult<[i32; 15]> {
     let value_vec = value
-        .iter()?
+        .try_iter()?
         .map(|v| v.and_then(|vv| vv.extract()))
         .collect::<PyResult<Vec<i32>>>()?;
     value_vec.try_into().map_err(|vv: Vec<i32>| {
@@ -129,16 +130,16 @@ pub fn emulator_load_controls(
 
 #[pyfunction]
 /// Returns the currently active keyboard configuration.
-pub fn emulator_get_kbcfg(py: Python) -> PyObject {
+pub fn emulator_get_kbcfg(py: Python) -> PyResult<PyObject> {
     dbg_trace!("emulator_get_kbcfg");
-    EMULATOR_CONTROLS.with(|controls| controls.borrow().kbcfg.into_py(py))
+    EMULATOR_CONTROLS.with(|controls| controls.borrow().kbcfg.into_py_any(py))
 }
 
 #[pyfunction]
 /// Returns the currently active joystick configuration.
-pub fn emulator_get_jscfg(py: Python) -> PyObject {
+pub fn emulator_get_jscfg(py: Python) -> PyResult<PyObject> {
     dbg_trace!("emulator_get_jscfg");
-    EMULATOR_CONTROLS.with(|controls| controls.borrow().jscfg.into_py(py))
+    EMULATOR_CONTROLS.with(|controls| controls.borrow().jscfg.into_py_any(py))
 }
 
 #[pyfunction]

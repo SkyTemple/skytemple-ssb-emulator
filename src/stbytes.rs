@@ -26,8 +26,12 @@ use pyo3::types::PyBytes;
 pub struct StBytes<'a>(pub(crate) Cow<'a, [u8]>);
 
 /// Export as bytes
-impl<'a> IntoPy<PyObject> for StBytes<'a> {
-    fn into_py(self, py: Python) -> PyObject {
-        PyBytes::new_bound(py, self.0.as_ref()).into()
+impl<'py> IntoPyObject<'py> for StBytes<'_> {
+    type Target = PyBytes;
+    type Output = Bound<'py, Self::Target>;
+    type Error = std::convert::Infallible;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(PyBytes::new(py, &self.0))
     }
 }
