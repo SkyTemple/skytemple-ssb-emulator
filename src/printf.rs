@@ -29,7 +29,7 @@ struct PrintfArg<'a> {
     value: u32,
 }
 
-impl<'a> Printf for PrintfArg<'a> {
+impl Printf for PrintfArg<'_> {
     fn format(&self, spec: &ConversionSpecifier) -> sprintf::Result<String> {
         match spec.conversion_type {
             ConversionType::String => {
@@ -130,7 +130,7 @@ struct DebugPrintState<'a> {
     stack_pos: u32,
 }
 
-impl<'a> DebugPrintState<'a> {
+impl DebugPrintState<'_> {
     pub fn read_next_value(&mut self) -> u32 {
         // Read registers first, then read values from the stack
         if self.read_register_values < self.register_values.len() as u32 {

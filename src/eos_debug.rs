@@ -533,7 +533,7 @@ impl BreakpointManager {
         let ssb_filename = ssb_filename.to_string();
 
         let collected_b_points = b_points
-            .iter()?
+            .try_iter()?
             .map(|v| v.and_then(|vv| vv.extract()))
             .collect::<PyResult<HashSet<u32>>>()?;
 
@@ -1074,7 +1074,7 @@ pub struct BreakpointResumeInfo {
 fn read_hook_addr(addrs: Option<Bound<PySequence>>) -> PyResult<Vec<u32>> {
     let mapped = addrs
         .map(|seq| {
-            seq.iter()?
+            seq.try_iter()?
                 .map(|v| v.and_then(|vv| vv.extract()))
                 .collect::<PyResult<Vec<u32>>>()
         })
