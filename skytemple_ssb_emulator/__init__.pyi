@@ -42,7 +42,7 @@ class EmulatorMemTableEntry:
         """Passes the bytes of the entry to the callback when ready and emulator_poll is called."""
 
 class EmulatorMemTable:
-    """ "A memory table."""
+    """A memory table."""
 
     entries: Sequence[EmulatorMemTableEntry]
     start_address: int
