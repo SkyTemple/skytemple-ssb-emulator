@@ -28,4 +28,4 @@ skytemple-ssb-emulator
 Emulator runtime and bindings for `skytemple-ssb-debugger`_.
 
 .. _SkyTemple Files: https://github.com/SkyTemple/skytemple-files
-.. _skytemple-ssb-debugger: https://github.com/SkyTemple/skytemple-ssb-debbuger
+.. _skytemple-ssb-debugger: https://github.com/SkyTemple/skytemple-ssb-debugger
